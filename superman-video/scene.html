@@ -557,7 +557,7 @@ addScene(25, 37, s => {
     let xr = 0; // força do raio X
     hero.g.position.set(1.2, 0, 2.2); hero.g.rotation.y = Math.PI * 0.92;
     mom.g.visible = t > 28.0;
-    const T_SCAN = 35.0;
+    const T_SCAN = 35.3;
     if (t < 28.0) { xr = ss(25.3, 25.8, t); hero.face('o', 0.8); hero.look(0, 0); }
     else if (t < T_SCAN) { xr = 1 - ss(28.0, 28.4, t); }
     else xr = ss(T_SCAN, T_SCAN + 0.4, t);
@@ -566,7 +566,7 @@ addScene(25, 37, s => {
       const k = ss(28.0, 29.6, t); mom.g.position.set(lerp(0.5, -0.6, ss(28.8, 29.6, t)), 0, lerp(-3.4, 0.6, k)); mom.g.rotation.y = lerp(0, 0.84, ss(29.3, 29.9, t));
       if (k < 1) mom.walk(t, 0.5, 8);
       if (t > 29.6) { mom.arms[0].rotation.set(0.2, 0, -0.7); mom.arms[1].rotation.set(0.2, 0, 0.7); mom.face('angry'); }
-      if (t > 31.36 && t < 35.2) { mom.face('talk', 0.5 + 0.6 * Math.abs(Math.sin(t * 14))); mom.arms[1].rotation.set(-1.4 + Math.sin(t * 5) * 0.2, 0, 0.2); mom.arms[1].userData.finger.visible = true; mom.body.rotation.z = Math.sin(t * 6) * 0.03; }
+      if (t > 31.1 && t < 35.25) { mom.face('talk', 0.5 + 0.6 * Math.abs(Math.sin(t * 14))); mom.arms[1].rotation.set(-1.4 + Math.sin(t * 5) * 0.2, 0, 0.2); mom.arms[1].userData.finger.visible = true; mom.body.rotation.z = Math.sin(t * 6) * 0.03; }
       if (t > 35.2) { mom.face('smile'); mom.arms[1].rotation.set(-1.6, 0, 0.3); mom.arms[1].userData.finger.visible = true; }
       hero.g.rotation.y = lerp(Math.PI * 0.92, Math.PI * 1.2, ss(28.6, 29.2, t));
       if (t > 28.6 && t < T_SCAN) { hero.face(t > 31.4 ? 'sad' : 'o', 0.8); hero.look(-0.3, 0); hero.eyes.forEach(e => e.scale.set(1.15, 1.15, 0.6)); }
@@ -641,10 +641,10 @@ addScene(37, 50, s => {
       }
       hero.face('smile'); hero.body.rotation.z = 0;
       // olhar + "quer tentar de novo?"
-      if (t > 44.2) { hero.head.rotation.y = -0.5; hero.look(-0.8, 0); hero.face('smirk'); hero.brows[1].position.y = 0.34; }
-      if (t > 46.3) { hero.arms[1].rotation.set(-0.3, 0, 0.5); hero.arms[0].rotation.set(-1.3, -0.3, -0.2); hero.arms[0].userData.finger.visible = true; }
-      if (t > 47.4) { // amigo foge
-        const r = t - 47.4; friend.g.rotation.y = -1.9; friend.g.position.set(-1.6 - r * 4.2, 0, 0.35 + r * 1.2); friend.walk(t, 1.1, 22); friend.face('o', 1.2); hand.scale.setScalar(1.8);
+      if (t > 44.8) { hero.head.rotation.y = -0.5; hero.look(-0.8, 0); hero.face('smirk'); hero.brows[1].position.y = 0.34; }
+      if (t > 46.9) { hero.arms[1].rotation.set(-0.3, 0, 0.5); hero.arms[0].rotation.set(-1.3, -0.3, -0.2); hero.arms[0].userData.finger.visible = true; }
+      if (t > 48.1) { // amigo foge
+        const r = t - 48.1; friend.g.rotation.y = -1.9; friend.g.position.set(-1.6 - r * 4.2, 0, 0.35 + r * 1.2); friend.walk(t, 1.1, 22); friend.face('o', 1.2); hand.scale.setScalar(1.8);
         friend.arms[1].rotation.set(-1.0, 0, 0.3);
         dustP.visible = true; dustP.userData.data.forEach((d, i) => { const age = ((r * 3 + d.o) % 1); dustP.userData.set(i, V(friend.g.position.x + 0.8 + age * 1.2, 0.3 + age * 0.5, friend.g.position.z - age * 0.6 + d.x), V(0, 0, 0), (1 - age) * 1.2); }); dustP.instanceMatrix.needsUpdate = true;
       } else hand.material = pt > 0.1 ? toon(0xff3d3d) : hand.material;
@@ -653,8 +653,8 @@ addScene(37, 50, s => {
     if (t < 40.1) { const k = ss(37, 40, t); camera.position.set(lerp(1.8, 2.6, k), lerp(2.0, 2.3, k), lerp(4.0, 6.2, k)); camera.lookAt(0.6, 1.8, 0); }
     else if (t < T_PUNCH + 0.9) { const k = ss(40.1, T_PUNCH, t); camera.position.set(lerp(-0.2, 0.2, k), lerp(2.2, 1.9, k), lerp(5.6, 4.0, k)); camera.lookAt(0, 1.7, 0); }
     else if (t < 44.1) { camera.position.set(0.3, 2.5, 4.4); camera.lookAt(-1.3, 2.0, 0.3); }
-    else if (t < 47.4) { const k = ss(44.1, 47.4, t); camera.position.set(lerp(-1.0, -0.7, k), 2.6, lerp(2.9, 2.5, k)); camera.lookAt(0.8, 2.3, 0); }
-    else { const r = t - 47.4; camera.position.set(lerp(1.5, -3, ss(0, 2.6, r)), 2.6, 8.5); camera.lookAt(-1.6 - r * 3.4, 1.6, 0.6 + r); }
+    else if (t < 48.1) { const k = ss(44.1, 48.1, t); camera.position.set(lerp(-1.0, -0.7, k), 2.6, lerp(2.9, 2.5, k)); camera.lookAt(0.8, 2.3, 0); }
+    else { const r = t - 48.1; camera.position.set(lerp(1.5, -3, ss(0, 2.6, r)), 2.6, 8.5); camera.lookAt(-1.6 - r * 3.4, 1.6, 0.6 + r); }
     camera.position.x += Math.sin(t * 81) * shake; camera.position.y += Math.cos(t * 67) * shake;
   } };
 });
@@ -791,7 +791,7 @@ const capEl = document.getElementById('cap'), titleEl = document.getElementById(
 const speakerColor = { narr: '#ffffff', mom: '#ffb3e6', hero: '#9ff6ff' };
 let lastCapKey = '';
 function updateCaptions(t) {
-  const c = t > 68.45 ? null : chunks.find(c => t >= c.s - 0.05 && t < c.hold);
+  const c = toAnim(t) > 68.45 ? null : chunks.find(c => t >= c.s - 0.05 && t < c.hold);
   if (!c) { capEl.innerHTML = ''; lastCapKey = ''; return; }
   const appear = easeOutBack(clamp((t - c.s + 0.05) / 0.18));
   capEl.style.transform = `scale(${(0.6 + 0.4 * appear).toFixed(3)})`;
@@ -821,11 +821,11 @@ const POPS = [
   { s: 21.2, e: 22.4, text: 'O CELULAR!!', x: 540, y: 960, size: 112, color: '#ff4d6d', rot: -4 },
   { s: 22.6, e: 24.8, text: 'DESESPERADO 😱', x: 540, y: 600, size: 104, color: '#ffe03a', rot: -6 },
   { s: 25.4, e: 27.8, text: 'VISÃO RAIO-X 👀', x: 540, y: 560, size: 104, color: '#7ffcff', rot: 3 },
-  { s: 35.4, e: 37.0, text: 'ACHEI! 🩴', x: 540, y: 470, size: 140, color: '#ffe03a', rot: -6, burst: '#3df5ff' },
+  { s: 35.6, e: 37.0, text: 'ACHEI! 🩴', x: 540, y: 470, size: 140, color: '#ffe03a', rot: -6, burst: '#3df5ff' },
   { s: 37.5, e: 39.8, text: 'INVULNERÁVEL 🛡️', x: 540, y: 520, size: 98, color: '#ffe03a', rot: -3 },
   { s: 41.35, e: 42.4, text: 'POW!', x: 560, y: 700, size: 220, color: '#ffe03a', rot: -12, burst: '#ff3d7f' },
   { s: 42.4, e: 44.0, text: 'AI AI AI! 🤕', x: 540, y: 560, size: 110, color: '#ff8a1f', rot: 5 },
-  { s: 48.0, e: 50.0, text: 'FUGIU 💨', x: 540, y: 580, size: 120, color: '#ffffff', rot: -4 },
+  { s: 48.6, e: 50.0, text: 'FUGIU 💨', x: 540, y: 580, size: 120, color: '#ffffff', rot: -4 },
   { s: 51.4, e: 53.6, text: 'A ESCOLA! ⏰', x: 540, y: 560, size: 120, color: '#ff4d6d', rot: -5 },
   { s: 55.0, e: 57.0, text: 'VOANDO! 🚀', x: 540, y: 560, size: 110, color: '#3df5ff', rot: 4 },
   { s: 57.6, e: 60.0, text: '3 HORAS ANTES 😅', x: 540, y: 560, size: 104, color: '#ffe03a', rot: -4 },
@@ -865,14 +865,18 @@ function updateFx(t) {
   flash.style.opacity = f.toFixed(3);
 }
 
-window.renderAt = (t) => {
+const TM = await (await fetch('build/timemap.json')).json();
+window.TOTAL = TM.total;
+const toAnim = t => { for (const [n0, o0, n1, o1] of TM.segments) if (t < n1) return o0 + (Math.max(0, t - n0)) * (o1 - o0) / (n1 - n0); return 69.999; };
+window.renderAt = (tReal) => {
+  const t = toAnim(tReal);
   const sc = scenes.find(s => t >= s.start && t < s.end) || scenes[scenes.length - 1];
   document.getElementById('xray').style.opacity = 0;
   camera.fov = 50; camera.up.set(0, 1, 0);
   sc.update(t);
   camera.updateProjectionMatrix();
   renderer.render(sc.scene, camera);
-  updateCaptions(t); updateTitle(t); updatePops(t); updateFx(t);
+  updateCaptions(tReal); updateTitle(t); updatePops(t); updateFx(t);
   return true;
 };
 await document.fonts.load('80px Lucky'); await document.fonts.load('800 40px Baloo'); await document.fonts.load('40px "Noto Color Emoji"', '😱');

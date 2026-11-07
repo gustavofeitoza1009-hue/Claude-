@@ -1,11 +1,11 @@
-"""Gera a narração (espeak-ng + MBROLA pt-BR) e a linha do tempo das legendas.
+"""Gera a narração (Piper TTS neural, voz pt-BR) e a linha do tempo das legendas.
 
 Saídas: build/voice.wav e build/timeline.json
 """
 import json, subprocess, wave, os
 import numpy as np
 
-SR = 22050  # taxa nativa do mbrola br
+SR = 22050
 OUT = "build"
 os.makedirs(OUT, exist_ok=True)
 
@@ -46,54 +46,62 @@ SEGMENTS = [
         (NARR, "Comenta aí!", "COMENTA AÍ! 👇"),
     ]),
 ]
-TOTAL = 70.0
+
 GAP = 0.22
 
 
+MODEL = "voices/pt-br-edresson-low.onnx"
+SEMITONES = {NARR: 0, MOM: 5, HERO: 1.5}
+
+
 def tts(voice, text, speed, pitch):
-    path = f"{OUT}/_tmp.wav"
-    subprocess.run(["espeak-ng", "-v", voice, "-s", str(speed), "-p", str(pitch), "-w", path, text],
-                   check=True, capture_output=True)
+    raw = f"{OUT}/_raw.wav"; path = f"{OUT}/_tmp.wav"
+    subprocess.run(["python3", "-m", "piper", "-m", MODEL, "-f", raw, "--length-scale", f"{172 / speed:.3f}",
+                    "--noise-scale", "0.6", "--noise-w-scale", "0.7"], input=text.encode(), check=True, capture_output=True)
+    k = 2 ** (SEMITONES[voice] / 12)
+    af = f"asetrate={int(16000 * k)},aresample={SR},atempo={1 / k:.4f}," if k != 1 else f"aresample={SR},"
+    af += "highpass=f=70,equalizer=f=3000:t=q:w=1:g=3,acompressor=threshold=-18dB:ratio=3:attack=5:release=80"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", raw, "-af", af, "-ac", "1", "-ar", str(SR), path], check=True)
     with wave.open(path) as w:
-        sr = w.getframerate()
         a = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768
-    if sr != SR:
-        idx = np.linspace(0, len(a) - 1, int(len(a) * SR / sr))
-        a = np.interp(idx, np.arange(len(a)), a)
-    # remove silêncio nas pontas
     nz = np.where(np.abs(a) > 0.01)[0]
     if len(nz):
         a = a[max(0, nz[0] - 200): nz[-1] + 600]
     return a
 
 
-PITCH = {NARR: 55, MOM: 70, HERO: 45}
-track = np.zeros(int(TOTAL * SR) + SR, dtype=np.float32)
-timeline = []
-for start, end, lines in SEGMENTS:
-    speed = 172
-    while True:
-        clips = [tts(v, t, speed + (8 if v != NARR else 0), PITCH[v]) for v, t, _ in lines]
-        dur = sum(len(c) for c in clips) / SR + GAP * (len(clips) - 1)
-        if dur <= (end - start) - 0.15 or speed > 260:
-            break
-        speed += 8
+PITCH = {NARR: 0, MOM: 0, HERO: 0}
+SPEED = 200          # ~ length_scale 0.86: ritmo natural
+OLD = [0, 5, 15, 25, 37, 50, 62, 70]   # limites das cenas na animação original
+LEAD, GAPL, TAIL = 0.3, 0.35, 0.7
+segs = []
+for (start, end, lines), o0, o1 in zip(SEGMENTS, OLD, OLD[1:]):
+    clips = [tts(v, t, SPEED, 0) for v, t, _ in lines]
     speech = sum(len(c) for c in clips) / SR
-    gap = max(GAP, min(1.0, ((end - start) - 0.3 - speech) / max(1, len(clips))))
-    t = start
+    tail = (1.6 if o1 == OLD[-1] else TAIL) + {25: 1.5, 37: 1.6}.get(o0, 0)
+    dur = max(o1 - o0, LEAD + speech + GAPL * (len(clips) - 1) + tail)
+    segs.append((o0, o1, dur, lines, clips, speech))
+TOTAL = round(sum(x[2] for x in segs), 2)
+track = np.zeros(int(TOTAL * SR) + SR, dtype=np.float32)
+timeline, timemap = [], []
+n0 = 0.0
+for o0, o1, dur, lines, clips, speech in segs:
+    timemap.append([round(n0, 3), o0, round(n0 + dur, 3), o1])
+    gap = GAPL + max(0, (dur - LEAD - speech - GAPL * (len(clips) - 1) - TAIL - {25: 1.5, 37: 1.6}.get(o0, 0))) / max(1, len(clips))
+    t = n0 + LEAD
     for (v, _, cap), c in zip(lines, clips):
-        d = len(c) / SR
-        i = int(t * SR)
-        track[i:i + len(c)] += c * (1.0 if v == NARR else 1.1)
+        d = len(c) / SR; i = int(t * SR)
+        track[i:i + len(c)] += c
         timeline.append({"start": round(t, 3), "end": round(t + d, 3), "text": cap,
                          "speaker": {NARR: "narr", MOM: "mom", HERO: "hero"}[v]})
         t += d + gap
-    print(f"seg {start:5.1f}-{end:5.1f}: speed {speed}, fala {dur:.2f}s")
-
+    print(f"cena {o0:>2}-{o1:<2}s -> {n0:6.2f}-{n0 + dur:6.2f}s (fala {speech:.2f}s)")
+    n0 += dur
+json.dump({"total": TOTAL, "segments": timemap}, open(f"{OUT}/timemap.json", "w"), indent=1)
 track = track[: int(TOTAL * SR)]
 track /= max(1e-6, np.abs(track).max()) / 0.9
 with wave.open(f"{OUT}/voice.wav", "wb") as w:
     w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
     w.writeframes((track * 32767).astype(np.int16).tobytes())
 json.dump(timeline, open(f"{OUT}/timeline.json", "w"), ensure_ascii=False, indent=1)
-os.remove(f"{OUT}/_tmp.wav")
+os.remove(f"{OUT}/_tmp.wav"); os.remove(f"{OUT}/_raw.wav")

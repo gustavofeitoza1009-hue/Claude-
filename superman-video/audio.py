@@ -2,7 +2,13 @@
 import wave, numpy as np
 
 SR = 44100
-DUR = 70.0
+import json
+TM = json.load(open('build/timemap.json'))
+DUR = TM['total']
+def M(o):
+    for n0, o0, n1, o1 in TM['segments']:
+        if o < o1: return n0 + (o - o0) * (n1 - n0) / (o1 - o0)
+    return TM['total']
 N = int(SR * DUR)
 rs = np.random.default_rng(7)
 
@@ -11,12 +17,14 @@ def t_(d): return np.arange(int(SR * d)) / SR
 def env(n, a=0.005, r=0.2):
     e = np.ones(n); na = max(1, int(a * SR)); e[:na] = np.linspace(0, 1, na)
     return e * np.exp(-np.arange(n) / SR / r)
-def add(buf, x, at, g=1.0):
+def add(buf, x, at, g=1.0, mapped=False):
+    if buf is sfx_ref[0] and not mapped: at = M(at)
     i = int(at * SR); j = min(len(buf), i + len(x))
     if j > i: buf[i:j] += x[: j - i] * g
 def note(f): return 440 * 2 ** ((f - 69) / 12)
 
 
+sfx_ref = [None]
 # ---------------- música (128 BPM) ----------------
 bpm = 128; beat = 60 / bpm; bar = beat * 4
 music = np.zeros(N)
@@ -51,7 +59,7 @@ while t < DUR:
 music = np.convolve(music, np.ones(6) / 6, mode='same')
 
 # ---------------- efeitos ----------------
-sfx = np.zeros(N)
+sfx = np.zeros(N); sfx_ref[0] = sfx
 def whoosh(d=0.6, up=True):
     t = t_(d); n = rs.standard_normal(len(t)); e = np.sin(np.pi * t / d) ** 2
     out = np.zeros_like(n); a = 0.0; c = np.linspace(0.02, 0.4, len(t)) if up else np.linspace(0.4, 0.02, len(t))
@@ -97,11 +105,11 @@ add(sfx, boom(0.8), 17.3, 0.8); add(sfx, whoosh(1.6), 17.3, 0.9)
 add(sfx, ding(1560, 0.4), 21.2, 0.5); add(sfx, ding(1560, 0.4), 21.45, 0.5)
 add(sfx, sweep(1500, 300, 2.4), 22.5, 0.2); add(sfx, whoosh(2.2), 22.5, 0.8)
 add(sfx, sweep(600, 1400, 1.2, trem=30), 25.3, 0.22)
-add(sfx, sweep(600, 1400, 0.8, trem=30), 35.0, 0.22); add(sfx, tada(), 35.4, 0.6)
+add(sfx, sweep(600, 1400, 0.8, trem=30), 35.3, 0.22); add(sfx, tada(), 35.6, 0.6)
 for k, m in enumerate([84, 88, 91, 96]): add(sfx, ding(note(m), 0.6), 37.4 + k * 0.08, 0.25)
 add(sfx, whoosh(0.35), 41.0, 0.7); add(sfx, punch(), 41.35, 1.0); add(sfx, boing(), 41.9, 0.6)
-add(sfx, sweep(400, 1600, 0.5), 47.4, 0.2)
-for k in range(10): add(sfx, whoosh(0.15), 47.5 + k * 0.12, 0.25)
+add(sfx, sweep(400, 1600, 0.5), 48.1, 0.2)
+for k in range(10): add(sfx, whoosh(0.15), 48.2 + k * 0.12, 0.25)
 add(sfx, alarm(2.0), 51.2, 0.6)
 add(sfx, whoosh(2.4), 54.4, 0.9)
 add(sfx, boom(0.5), 57.3, 0.7)

@@ -32,7 +32,7 @@ function serve() {
       await stage.screenshot({ path: path.join(ROOT, `build/stills/t_${t}.jpg`), type: 'jpeg', quality: 85 });
     }
   } else {
-    const fps = Number(args[2] || 30), f0 = Number(args[0] || 0), f1 = Number(args[1] || 70 * fps);
+    const fps = Number(args[2] || 30), total = await page.evaluate(() => window.TOTAL), f0 = Number(args[0] || 0), f1 = Math.min(Number(args[1] || 1e9), Math.floor(total * fps));
     fs.mkdirSync(path.join(ROOT, 'build/frames'), { recursive: true });
     const t0 = Date.now();
     for (let f = f0; f < f1; f++) {
