@@ -642,7 +642,7 @@ addScene(37, 50, s => {
       hero.face('smile'); hero.body.rotation.z = 0;
       // olhar + "quer tentar de novo?"
       if (t > 44.8) { hero.head.rotation.y = -0.5; hero.look(-0.8, 0); hero.face('smirk'); hero.brows[1].position.y = 0.34; }
-      if (t > 46.9) { hero.arms[1].rotation.set(-0.3, 0, 0.5); hero.arms[0].rotation.set(-1.3, -0.3, -0.2); hero.arms[0].userData.finger.visible = true; }
+      if (t > 46.6) { hero.arms[1].rotation.set(-0.3, 0, 0.5); hero.arms[0].rotation.set(-1.3, -0.3, -0.2); hero.arms[0].userData.finger.visible = true; }
       if (t > 48.1) { // amigo foge
         const r = t - 48.1; friend.g.rotation.y = -1.9; friend.g.position.set(-1.6 - r * 4.2, 0, 0.35 + r * 1.2); friend.walk(t, 1.1, 22); friend.face('o', 1.2); hand.scale.setScalar(1.8);
         friend.arms[1].rotation.set(-1.0, 0, 0.3);

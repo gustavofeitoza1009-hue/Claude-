@@ -74,9 +74,30 @@ PITCH = {NARR: 0, MOM: 0, HERO: 0}
 SPEED = 200          # ~ length_scale 0.86: ritmo natural
 OLD = [0, 5, 15, 25, 37, 50, 62, 70]   # limites das cenas na animação original
 LEAD, GAPL, TAIL = 0.3, 0.35, 0.7
+def load(path, a=None, b=None):
+    cmd = ["ffmpeg", "-v", "error"] + (["-ss", f"{a:.3f}", "-to", f"{b:.3f}"] if a is not None else []) + ["-i", path, "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"]
+    x = np.frombuffer(subprocess.run(cmd, capture_output=True, check=True).stdout, dtype=np.float32).copy()
+    nz = np.where(np.abs(x) > 0.01)[0]
+    if len(nz): x = x[max(0, nz[0] - 300): nz[-1] + 1500]
+    f = min(len(x), 300); x[:f] *= np.linspace(0, 1, f); x[-f:] *= np.linspace(1, 0, f)
+    return x
+
+
+ELEVEN = os.environ.get("VOICE") == "eleven"
+if ELEVEN:
+    ELSEG = json.load(open("build/eleven_segments.json"))
+    ALL = [l for _, _, ls in SEGMENTS for l in ls]
+    def clip_for(idx, v):
+        if v == MOM: return load("voices/eleven/mae.mp3")
+        a, b = ELSEG[idx]; return load("voices/eleven/menino.mp3", max(0, a - 0.05), b + 0.08)
+li = 0
 segs = []
 for (start, end, lines), o0, o1 in zip(SEGMENTS, OLD, OLD[1:]):
-    clips = [tts(v, t, SPEED, 0) for v, t, _ in lines]
+    if ELEVEN:
+        clips = [clip_for(li + k, v) for k, (v, t, _) in enumerate(lines)]
+    else:
+        clips = [tts(v, t, SPEED, 0) for v, t, _ in lines]
+    li += len(lines)
     speech = sum(len(c) for c in clips) / SR
     tail = (1.6 if o1 == OLD[-1] else TAIL) + {25: 1.5, 37: 1.6}.get(o0, 0)
     dur = max(o1 - o0, LEAD + speech + GAPL * (len(clips) - 1) + tail)
@@ -104,4 +125,4 @@ with wave.open(f"{OUT}/voice.wav", "wb") as w:
     w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
     w.writeframes((track * 32767).astype(np.int16).tobytes())
 json.dump(timeline, open(f"{OUT}/timeline.json", "w"), ensure_ascii=False, indent=1)
-os.remove(f"{OUT}/_tmp.wav"); os.remove(f"{OUT}/_raw.wav")
+[os.remove(f) for f in (f"{OUT}/_tmp.wav", f"{OUT}/_raw.wav") if os.path.exists(f)]
