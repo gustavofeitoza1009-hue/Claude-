@@ -161,7 +161,31 @@ def sfx(total, seg):
     return buf
 
 
+# ---- voz gravada (ElevenLabs) ----
+# Trechos (segundos no arquivo original) de cada fala + silêncio extra depois dela
+VOZ = os.path.join(HERE, "vozes", "narracao.mp3")
+CHUNKS = [("g1", 0.00, 4.74, 0), ("g2", 4.74, 9.10, 0), ("g3", 9.10, 13.88, 0), ("g4", 13.88, 16.73, 0.3),
+          ("g5", 16.73, 22.89, 0.8), ("g6", 22.89, 26.77, 0), ("g7", 26.77, 30.48, 0), ("g8", 30.48, 33.29, 0),
+          ("g9", 33.29, 34.63, 0), ("g10", 34.63, 40.80, 0), ("g11", 40.80, 44.39, 0), ("g12", 44.39, 99.0, 0)]
+
+
+def main_recorded():
+    src = base.load_mp3(VOZ)
+    caps = {sid: cap for sid, _, cap, _ in SEGMENTS}
+    clips, timeline, t = [], [], LEAD_IN
+    for sid, a, b, extra in CHUNKS:
+        d = src[int(a * SR): int(min(b, len(src) / SR) * SR)]
+        sa, sb = base.speech_bounds(d)
+        timeline.append({"id": sid, "start": round(t + sa, 3), "end": round(t + sb, 3), "caption": caps[sid], "speaker": "narrador"})
+        clips.append((t, d))
+        t += len(d) / SR + extra
+    return clips, timeline, t
+
+
 def main():
+    if os.path.exists(VOZ):
+        clips, timeline, t = main_recorded()
+        return finish(clips, timeline, t + TAIL)
     clips, timeline = [], []
     t = LEAD_IN
     for sid, spoken, caption, pause in SEGMENTS:
@@ -172,7 +196,10 @@ def main():
         clips.append((t, d))
         timeline.append({"id": sid, "start": round(t, 3), "end": round(t + dur, 3), "caption": caption, "speaker": "narrador"})
         t += dur + pause
-    total = t + TAIL
+    finish(clips, timeline, t + TAIL)
+
+
+def finish(clips, timeline, total):
     print(f"duração total: {total:.2f}s")
     narr = np.zeros(int(total * SR))
     for start, d in clips:
