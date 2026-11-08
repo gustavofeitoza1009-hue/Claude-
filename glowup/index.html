@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Glow Up Ep. 1</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  #stage { position: relative; width: 720px; height: 1280px; overflow: hidden; font-family: 'Inter', 'DejaVu Sans', sans-serif; }
+  canvas#c { position: absolute; inset: 0; width: 720px; height: 1280px; }
+  .ov { position: absolute; pointer-events: none; }
+  #tint { inset: 0; background: rgba(90, 140, 40, .35); mix-blend-mode: multiply; opacity: 0; }
+  #flash { inset: 0; background: #fff; opacity: 0; }
+  #vig { inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,.35) 100%); }
+
+  /* HUD: dias + barra do glow up */
+  #hud { left: 28px; right: 28px; top: 34px; padding: 14px 18px 16px; border-radius: 22px; background: rgba(20, 18, 34, .62);
+         backdrop-filter: blur(6px); color: #fff; opacity: 0; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+  #hud .row { display: flex; justify-content: space-between; align-items: baseline; font-weight: 800; }
+  #day { font-size: 26px; letter-spacing: .5px; }
+  #left { font-size: 22px; color: #ffd166; display: inline-block; transform-origin: 100% 50%; }
+  #hud .lbl { margin-top: 10px; display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; color: #d9d2ff; letter-spacing: 1px; }
+  #track { position: relative; margin-top: 6px; height: 18px; border-radius: 10px; background: rgba(255,255,255,.18); overflow: visible; }
+  #bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 10px; background: linear-gradient(90deg, #7cf29c, #ffd166, #ff7ab8); }
+  #mark { position: absolute; right: -6px; top: -30px; font-size: 13px; font-weight: 800; color: #ff9fd0; opacity: 0; text-align: center; }
+  #mark:after { content: ''; display: block; margin: 2px auto 0; width: 3px; height: 40px; background: #ff9fd0; border-radius: 2px; }
+
+  #caption { left: 40px; right: 40px; bottom: 120px; text-align: center; font-weight: 800; font-size: 34px; line-height: 1.22; color: #fff;
+             -webkit-text-stroke: 2px rgba(0,0,0,.85); paint-order: stroke fill; text-shadow: 0 3px 8px rgba(0,0,0,.45); }
+  #caption span { display: inline-block; }
+  #caption span.on { color: #ffd166; }
+
+  #tag { left: 0; right: 0; margin: 0 auto; width: max-content; top: 200px; padding: 8px 20px; border-radius: 14px; color: #fff; font-weight: 900; font-size: 30px; letter-spacing: 1px; opacity: 0; box-shadow: 0 6px 16px rgba(0,0,0,.25); }
+
+  #cards { left: 40px; right: 40px; top: 230px; display: flex; gap: 18px; opacity: 0; }
+  .card { flex: 1; background: rgba(255,255,255,.92); border-radius: 20px; padding: 14px 12px; text-align: center; color: #2a2340; box-shadow: 0 8px 20px rgba(0,0,0,.18); transition: none; border: 4px solid transparent; }
+  .card .l { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: #fff; font-weight: 900; font-size: 26px; }
+  .card .t { margin-top: 6px; font-weight: 900; font-size: 22px; }
+  .card .s { font-size: 14px; font-weight: 600; color: #6b6488; margin-top: 2px; }
+  #cardA .l { background: #ff6fa8; } #cardB .l { background: #3b82f6; }
+  #cardA.hi { border-color: #ff6fa8; transform: scale(1.06); } #cardB.hi { border-color: #3b82f6; transform: scale(1.06); }
+  #cta { left: 0; right: 0; margin: 0 auto; width: max-content; top: 410px; background: #ffd166; color: #2a2340; padding: 12px 24px; border-radius: 18px; font-weight: 900; font-size: 28px; opacity: 0; box-shadow: 0 8px 20px rgba(0,0,0,.2); }
+  #ep { left: 0; right: 0; margin: 0 auto; width: max-content; bottom: 300px; color: #fff; font-weight: 800; font-size: 22px; background: rgba(20,18,34,.7); padding: 8px 18px; border-radius: 12px; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c" width="720" height="1280"></canvas>
+  <div class="ov" id="tint"></div>
+  <div class="ov" id="vig"></div>
+  <div class="ov" id="hud">
+    <div class="row"><span id="day">DIA 1 / 30</span><span id="left">faltam 30 dias</span></div>
+    <div class="lbl"><span>GLOW UP</span><span id="pct">0%</span></div>
+    <div id="track"><div id="bar"></div><div id="mark">JÚLIA</div></div>
+  </div>
+  <div class="ov" id="tag"></div>
+  <div class="ov" id="cards">
+    <div class="card" id="cardA"><span class="l">A</span><div class="t">SKINCARE</div><div class="s">adeus, espinhas</div></div>
+    <div class="card" id="cardB"><span class="l">B</span><div class="t">CORTE DE CABELO</div><div class="s">visual estiloso</div></div>
+  </div>
+  <div class="ov" id="cta">Vote nos comentários: A ou B?</div>
+  <div class="ov" id="ep">EP. 1 · Próximo episódio: a escolha de vocês</div>
+  <div class="ov" id="caption"></div>
+  <div class="ov" id="flash"></div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>
