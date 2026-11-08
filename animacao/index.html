@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Um Bilhão</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  #stage { position: relative; width: 720px; height: 1280px; overflow: hidden; font-family: 'Inter', 'DejaVu Sans', sans-serif; }
+  canvas#c { position: absolute; inset: 0; width: 720px; height: 1280px; }
+  .ov { position: absolute; pointer-events: none; }
+  #vignette { inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.55) 100%); }
+  #tint { inset: 0; opacity: 0; }
+  #flash { inset: 0; background: #fff; opacity: 0; }
+
+  #hook { left: 30px; right: 30px; top: 46px; text-align: center; font-weight: 900; font-size: 40px; line-height: 1.08;
+          color: #fff; text-transform: uppercase; letter-spacing: -.5px;
+          text-shadow: 0 4px 0 #1b1b1b, 0 0 18px rgba(0,0,0,.45); -webkit-text-stroke: 2px #1b1b1b; }
+  #hook b { color: #ffd23f; }
+
+  #caption { left: 34px; right: 34px; bottom: 150px; text-align: center; font-weight: 900; font-size: 44px; line-height: 1.12;
+             color: #fff; text-transform: uppercase; letter-spacing: -.5px;
+             -webkit-text-stroke: 2.5px #111; paint-order: stroke fill; text-shadow: 0 5px 0 rgba(0,0,0,.55); }
+  #caption span { display: inline-block; margin: 0 6px; transition: none; }
+  #caption span.on { color: #ffd23f; transform: scale(1.12) rotate(-2deg); }
+  #caption span.past { color: #fff; }
+  #caption span.fut { color: rgba(255,255,255,.9); }
+  #speaker { left: 0; right: 0; bottom: 0; text-align: center; font-weight: 800; font-size: 26px; }
+  #speaker i { font-style: normal; display: inline-block; padding: 6px 18px; border-radius: 30px; color: #fff; }
+
+  #stamp { left: 0; right: 0; top: 40%; text-align: center; font-weight: 900; font-size: 64px; line-height: 1;
+           color: #fff; text-transform: uppercase; -webkit-text-stroke: 3px #111; paint-order: stroke fill;
+           text-shadow: 0 6px 0 rgba(0,0,0,.5); opacity: 0; }
+  #stamp small { display: block; font-size: 34px; margin-top: 10px; }
+
+  #counter { right: 36px; top: 210px; width: 200px; text-align: center; opacity: 0; }
+  #counter .n { font-size: 96px; font-weight: 900; color: #ffd23f; -webkit-text-stroke: 3px #111; paint-order: stroke fill; line-height: 1; }
+  #counter .l { font-size: 22px; font-weight: 800; color: #fff; -webkit-text-stroke: 1.5px #111; paint-order: stroke fill; }
+
+  /* celular */
+  #phone { left: 50%; top: 200px; width: 330px; height: 620px; margin-left: -165px; border-radius: 46px; background: #15161a;
+           box-shadow: 0 30px 60px rgba(0,0,0,.45), inset 0 0 0 3px #34363d; opacity: 0; transform-origin: 50% 60%; }
+  #phone .scr { position: absolute; inset: 14px; border-radius: 34px; overflow: hidden; background: #f4f1ea; }
+  #phone .notch { position: absolute; top: 22px; left: 50%; width: 92px; height: 24px; margin-left: -46px; background: #15161a; border-radius: 14px; z-index: 3; }
+  .bank-top { background: linear-gradient(160deg, #2f7a5d, #1f5b46); color: #fff; padding: 58px 22px 22px; }
+  .bank-top .nm { font-size: 18px; font-weight: 800; opacity: .9; }
+  .bank-top .hi { font-size: 15px; opacity: .8; margin-top: 4px; }
+  .bank-body { padding: 22px; color: #20242b; }
+  .bank-body .lb { font-size: 15px; font-weight: 600; color: #6b7280; }
+  .bank-body .bal { font-size: 29px; font-weight: 900; letter-spacing: -1px; margin-top: 6px; white-space: nowrap; }
+  .bank-body .bal.neg { color: #d62839; }
+  .bank-body .bal.pos { color: #1f7a4f; }
+  .bank-body .row { margin-top: 18px; padding: 14px; background: #fff; border-radius: 16px; font-size: 15px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,.06); display: flex; justify-content: space-between; }
+  .bank-body .row b { color: #d62839; }
+  .bank-body .btn { margin-top: 20px; text-align: center; background: #2f7a5d; color: #fff; padding: 14px; border-radius: 16px; font-weight: 800; font-size: 17px; }
+  .spinner { margin: 60px auto; width: 64px; height: 64px; border-radius: 50%; border: 8px solid #d9e7e0; border-top-color: #2f7a5d; }
+  .chat-top { background: #ece5dd; padding: 58px 16px 14px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #d6cfc6; }
+  .chat-top .av { width: 48px; height: 48px; border-radius: 50%; background: #e88d3a; color: #fff; font-weight: 900; font-size: 22px; display: grid; place-items: center; }
+  .chat-top .nm { font-weight: 800; font-size: 18px; color: #1d1d1d; }
+  .chat-top .st { font-size: 13px; color: #7a7a7a; }
+  .chat-body { padding: 18px 14px; background: #e6ddd3; position: absolute; top: 132px; bottom: 0; left: 0; right: 0; }
+  .bub { background: #fff; border-radius: 4px 18px 18px 18px; padding: 12px 16px; font-size: 21px; font-weight: 700; color: #1d1d1d; display: inline-block; max-width: 240px; box-shadow: 0 2px 4px rgba(0,0,0,.08); margin-bottom: 12px; transform-origin: 0 0; }
+  .bub small { display: block; text-align: right; font-size: 12px; color: #999; font-weight: 500; margin-top: 4px; }
+  .heart { color: #e63946; }
+  .glitch { position: absolute; inset: 0; mix-blend-mode: difference; }
+
+  #cta { left: 30px; right: 30px; top: 90px; text-align: center; font-weight: 900; font-size: 50px; line-height: 1.05; color: #fff;
+         text-transform: uppercase; -webkit-text-stroke: 3px #111; paint-order: stroke fill; text-shadow: 0 6px 0 rgba(0,0,0,.5); opacity: 0; }
+  #cta b { color: #ffd23f; }
+  #zzz { left: 260px; top: 520px; font-weight: 900; font-size: 54px; color: #fff; -webkit-text-stroke: 2px #2a3a6a; paint-order: stroke fill; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c" width="720" height="1280"></canvas>
+  <div class="ov" id="tint"></div>
+  <div class="ov" id="vignette"></div>
+  <div class="ov" id="zzz">Z<span style="font-size:.75em">z</span><span style="font-size:.55em">z</span></div>
+  <div class="ov" id="hook">E se você acordasse com<br><b>R$ 1 bilhão</b> na conta?</div>
+  <div class="ov" id="counter"><div class="n">1x</div><div class="l">CONFERINDO<br>O SALDO</div></div>
+  <div class="ov" id="phone"><div class="notch"></div><div class="scr"></div></div>
+  <div class="ov" id="stamp"></div>
+  <div class="ov" id="cta"></div>
+  <div class="ov" id="caption"></div>
+  <div class="ov" id="flash"></div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>
