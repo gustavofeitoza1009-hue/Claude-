@@ -10,7 +10,7 @@ import wave
 
 import numpy as np
 
-SR = 22050
+SR = 44100
 OUT = os.path.join(os.path.dirname(__file__), "build")
 os.makedirs(OUT, exist_ok=True)
 
@@ -85,7 +85,68 @@ def write_wav(path, data):
         w.writeframes((data * 32767).astype(np.int16).tobytes())
 
 
+# ---- vozes gravadas (ElevenLabs) ----
+# Trechos da narração (segundos no arquivo original) para cada fala.
+# O trecho "s9b" (fala da mãe) é substituído pelo áudio vozes/mae.mp3.
+VOZ_NARR = os.path.join(os.path.dirname(__file__), "vozes", "narracao.mp3")
+VOZ_MAE = os.path.join(os.path.dirname(__file__), "vozes", "mae.mp3")
+CHUNKS = [("s1", 0.00, 4.67), ("s2", 4.67, 10.02), ("s3", 10.02, 14.77), ("s4", 14.77, 17.51),
+          ("s5", 17.51, 19.84), ("s6", 19.84, 22.14), ("s7", 22.14, 25.18), ("s7b", 25.18, 27.25),
+          ("s8", 27.25, 31.45), ("s9", 31.45, 33.22), ("s9b", 33.22, 35.88), ("s10", 35.88, 37.64),
+          ("s11", 37.64, 41.97), ("s12", 41.97, 44.96), ("s13", 44.96, 99.0)]
+REC_LEAD = 1.0
+
+
+def load_mp3(path):
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", path, "-ac", "1", "-ar", str(SR), "-f", "s16le", "-"],
+                         check=True, capture_output=True).stdout
+    return np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768
+
+
+def speech_bounds(d, thr_db=-45):
+    win = int(0.02 * SR)
+    n = len(d) // win
+    rms = np.sqrt((d[:n * win].reshape(n, win) ** 2).mean(1) + 1e-12)
+    on = np.where(20 * np.log10(rms) > thr_db)[0]
+    if not len(on):
+        return 0.0, len(d) / SR
+    return on[0] * win / SR, (on[-1] + 1) * win / SR
+
+
+def main_recorded():
+    narr_src = load_mp3(VOZ_NARR)
+    mae = load_mp3(VOZ_MAE)
+    a, b = speech_bounds(mae)
+    mae = mae[int(a * SR): int(b * SR) + int(0.05 * SR)]
+    caps = {sid: (cap, voice) for sid, voice, _, cap, _ in SEGMENTS}
+    pieces, timeline, t = [], [], REC_LEAD
+    for sid, a, b in CHUNKS:
+        b = min(b, len(narr_src) / SR)
+        if sid == "s9b":
+            d = np.concatenate([np.zeros(int(0.15 * SR)), mae, np.zeros(int(0.35 * SR))])
+        else:
+            d = narr_src[int(a * SR): int(b * SR)]
+        sa, sb = speech_bounds(d)
+        cap, voice = caps[sid]
+        timeline.append({"id": sid, "start": round(t + sa, 3), "end": round(t + sb, 3), "caption": cap,
+                         "speaker": "primo" if voice is PRIMO else "mae" if voice is MAE else "narrador"})
+        pieces.append((t, d))
+        t += len(d) / SR
+    return pieces, timeline, t
+
+
 def main():
+    if os.path.exists(VOZ_NARR) and os.path.exists(VOZ_MAE):
+        clips, timeline, t = main_recorded()
+        total = t + TAIL
+        print(f"duração total: {total:.2f}s (vozes gravadas)")
+        assert total <= 55.0, "passou de 55 segundos!"
+        n = int(total * SR)
+        narr = np.zeros(n)
+        for start, d in clips:
+            i = int(start * SR)
+            narr[i:i + len(d)] += d
+        return finish(total, narr, timeline)
     clips, timeline = [], []
     t = LEAD_IN
     for sid, voice, spoken, caption, pause in SEGMENTS:
@@ -106,6 +167,10 @@ def main():
     for start, d in clips:
         i = int(start * SR)
         narr[i:i + len(d)] += d * 0.95
+    finish(total, narr, timeline)
+
+
+def finish(total, narr, timeline):
     write_wav(os.path.join(OUT, "narration.wav"), narr)
 
     seg = {s["id"]: s for s in timeline}
