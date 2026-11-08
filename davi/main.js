@@ -197,13 +197,22 @@ function makeHuman(o = {}) {
   return c;
 }
 function hpose(c, o = {}) {
-  const { t = 0, talk = 0, lid = null, eye = 1, look = [0, 0], brow = 0, smile = 0.4, open = 0, head = [0, 0, 0], body = [0, 0, 0], arms = null, legs = null } = o;
+  const { t = 0, talk = 0, lid = null, eye = 1, look = [0, 0], brow = 0, smile = 0.4, open = 0, head = [0, 0, 0], body = [0, 0, 0], arms = null, legs = null,
+    bodyY = 0, idle = 1, knees = 0 } = o;
+  const sd = (c.seed || 0) * 10;
+  // ---- camada de "vida": respiração, balanço, olhar, cabeça que acompanha a fala ----
+  const breath = Math.sin(t * 2.1 + sd) * 0.5 + 0.5;
+  const sway = Math.sin(t * 0.9 + sd) * 0.022 * idle;
+  const weight = Math.sin(t * 0.45 + sd * 0.7) * idle;                 // troca o peso de perna
+  const sacc = Math.floor(t * 1.4 + sd);                               // micro-movimentos dos olhos
+  const sx = (Math.sin(sacc * 12.9898) * 43758.5453 % 1) * 0.12 * idle, sy = (Math.sin(sacc * 78.233) * 12543.21 % 1) * 0.06 * idle;
+  const nod = talk * (Math.sin(t * 7.5 + sd) * 0.05 + Math.sin(t * 3.1) * 0.03);
   const ph = (t * 0.33 + (c.seed || 0)) % 1;
   const blink = ph > 0.96 ? Math.sin((ph - 0.96) / 0.04 * Math.PI) : 0;
-  const L = lid == null ? blink : lid;
+  const L = lid == null ? blink : Math.max(lid, blink * (1 - lid));
   for (const l of c.lids) l.rotation.x = lerp(-1.0, 1.6, L);
-  for (const b of c.balls) { b.scale.setScalar(eye); b.rotation.set(-look[1], look[0], 0); }
-  for (const b of c.brows) { b.rotation.z = b.userData.s * brow * 0.38; b.position.y = 0.12 + (brow < 0 ? -brow * 0.03 : -brow * 0.012); }
+  for (const b of c.balls) { b.scale.setScalar(eye); b.rotation.set(-look[1] - sy, look[0] + sx, 0); }
+  for (const b of c.brows) { b.rotation.z = b.userData.s * brow * 0.38; b.position.y = 0.12 + (brow < 0 ? -brow * 0.03 : -brow * 0.012) + talk * Math.max(0, Math.sin(t * 5 + sd)) * 0.012; }
   const m = talk > 0 ? talk * (0.3 + 0.7 * Math.abs(Math.sin(t * 16 + Math.sin(t * 5) * 2))) : 0;
   const op = Math.max(m, open);
   c.inner.scale.set(0.045 + op * 0.015 + smile * 0.012, 0.01 + op * 0.06, 0.02);
@@ -213,16 +222,19 @@ function hpose(c, o = {}) {
   c.smileArc.scale.set(0.7 + Math.abs(smile) * 0.5, Math.abs(smile) * 0.9 + 0.1, 0.5);
   c.smileArc.rotation.z = smile >= 0 ? Math.PI : 0;
   c.smileArc.position.y = smile >= 0 ? 0.015 : -0.03;
-  c.head.rotation.set(head[0], head[1], head[2]);
-  c.body.rotation.set(body[0], body[1], body[2]);
+  c.head.rotation.set(head[0] + nod + Math.sin(t * 1.3 + sd) * 0.02 * idle, head[1] + Math.sin(t * 0.7 + sd) * 0.06 * idle, head[2] + sway * 0.8);
+  c.body.rotation.set(body[0], body[1], body[2] + sway + weight * 0.015);
+  c.body.position.set(weight * 0.02, bodyY - knees * 0.12 + breath * 0.008, 0);
+  c.torso.scale.x = (c.torsoX || 1) * (1 + breath * 0.018); c.torso.scale.z = (c.torsoZ || 1) * (1 + breath * 0.025);
   const def = [[0.05, 0, 0.1], [0.05, 0, -0.1]];
   for (let i = 0; i < 2; i++) {
     const a = c.arms[i], r = arms && arms[i] ? arms[i] : null;
     const sh = r ? r[0] : def[i];
-    a.sh.rotation.set(sh[0], sh[1], sh[2]);
-    a.el.rotation.set(r && r[1] != null ? r[1] : -0.15, 0, 0);
+    const ib = (r ? 0.4 : 1) * idle;                                    // braços balançam de leve
+    a.sh.rotation.set(sh[0] + Math.sin(t * 1.7 + sd + i * 2) * 0.035 * ib, sh[1], sh[2] + (i ? -1 : 1) * breath * 0.025 * ib);
+    a.el.rotation.set((r && r[1] != null ? r[1] : -0.15) - Math.sin(t * 1.9 + sd + i) * 0.04 * ib, 0, 0);
   }
-  for (let i = 0; i < 2; i++) c.legs[i].rotation.set(legs ? legs[i] : 0, 0, 0);
+  for (let i = 0; i < 2; i++) c.legs[i].rotation.set((legs ? legs[i] : 0) - knees * 0.35, 0, (i ? -1 : 1) * weight * 0.025);
 }
 const walkLegs = (t, sp = 7, a = 0.45) => [Math.sin(t * sp) * a, -Math.sin(t * sp) * a];
 const walkArms = (t, sp = 7, a = 0.4) => [[[-Math.sin(t * sp) * a, 0, 0.1], -0.3], [[Math.sin(t * sp) * a, 0, -0.1], -0.3]];
@@ -241,7 +253,7 @@ const armorM = new THREE.MeshStandardMaterial({ map: scaleTex, roughness: 0.35, 
 
 const davi = makeHuman({ skin: 0xe8b08a, tunic: 0xeedfba, belt: 0xc0392b, hair: 0x6b3a1e, iris: 0x4a2a14, blush: true, browCol: 0x5a3018 });
 const golias = makeHuman({ skin: 0xc48a62, tunicMat: armorM, belt: 0x5a3a1a, helmet: true, crest: 0xb3262e, beard: 0x24170f, browCol: 0x24170f, bracers: true, greaves: true, armorPads: true, iris: 0x2a1a0c });
-golias.torso.scale.set(1.3, 1, 1.2);
+golias.torso.scale.set(1.3, 1, 1.2); golias.torsoX = 1.3; golias.torsoZ = 1.2;
 for (const a of golias.arms) a.sh.scale.setScalar(1.25);
 golias.head.scale.setScalar(0.92);
 const saul = makeHuman({ skin: 0xd9a07a, tunic: 0x6c3fa6, robe: true, belt: 0xf2c14e, crown: true, beard: 0x9a9a9a, browCol: 0x7a7a7a });
@@ -278,6 +290,9 @@ golias.root.scale.setScalar(2.6);
   add(sh, new THREE.TorusGeometry(0.3, 0.02, 8, 30), M(0x8a5a22, 0.4, 0.8), [0, 0, 0.025]);
   add(sh, SPH, M(0x8a5a22, 0.4, 0.8), [0, 0, 0.03], [0.07, 0.07, 0.04]);
 }
+const looseSpear = new THREE.Group(); scene.add(looseSpear); looseSpear.scale.setScalar(2.6);
+add(looseSpear, CYL, M(0x5a3a22, 0.7), [0, 0.35, 0], [0.025, 2.2, 0.025]);
+add(looseSpear, new THREE.ConeGeometry(0.05, 0.25, 8), M(0xbfc6cc, 0.2, 0.9), [0, 1.55, 0]);
 // bolsa de pastor e cajado do Davi
 {
   const bag = add(davi.body, SPH, M(0x8b5a2b, 0.8), [0.3, 0.92, 0.1], [0.11, 0.13, 0.07]);
@@ -566,9 +581,19 @@ function hideAll() {
   golias.root.rotation.y = -Math.PI / 2; golias.root.visible = false;
   sheep.forEach(s => s.visible = false); stones.forEach(s => s.visible = false); flyStone.visible = false; trail.forEach(m => m.visible = false);
   star.visible = false; updateDust(null); updateSparks(false); updateSling(null); rayM.opacity = 0;
+  looseSpear.visible = false; golias.spear.visible = true;
   davi.acc.armor.visible = false; davi.acc.helm.visible = false; davi.acc.staff.visible = false; davi.acc.bag.visible = true;
   canvas.style.filter = '';
   updateBirds(false); updateButterflies(false); sunDisc.visible = false;
+}
+function sheepLife(t) {
+  sheep.forEach((s, i) => {
+    if (!s.visible) return;
+    s.position.x += Math.sin(t * 0.35 + i * 2) * 0.25; s.position.z += Math.cos(t * 0.3 + i) * 0.12;
+    s.position.y = Math.abs(Math.sin(t * 2.6 + i)) * 0.025;
+    s.rotation.z = Math.sin(t * 2.6 + i) * 0.03;
+    s.userData.head.rotation.y = Math.sin(t * 0.8 + i) * 0.35;
+  });
 }
 function spearsUp(list) { for (const s of list) { const a = s.arms[0]; s.spear.rotation.set(-(a.sh.rotation.x + a.el.rotation.x), 0, -a.sh.rotation.z); } }
 function soldierLine(t, mood, o = {}) {
@@ -580,7 +605,7 @@ function soldierLine(t, mood, o = {}) {
     if (o.cheer) {
       const j = Math.abs(Math.sin(t * 7 + i)) * 0.35;
       s.root.position.y = j;
-      hpose(s, { t, open: 0.7, smile: 1, brow: -0.3, arms: [[[-2.9 + Math.sin(t * 7 + i) * 0.2, 0, 0.2], -0.2], [[-0.6, 0, -0.3], -1.2]], head: [-0.2, 0, 0] });
+      hpose(s, { t, open: 0.5 + 0.4 * Math.abs(Math.sin(t * 6 + i)), smile: 1, brow: -0.3, arms: [[[-2.6 + Math.sin(t * 7 + i) * 0.45, 0, 0.2], -0.2 - Math.abs(Math.sin(t * 7 + i)) * 0.5], [[-0.6, 0, -0.3], -1.2]], head: [-0.2, Math.sin(t * 2 + i * 1.7) * 0.5, 0], body: [0, Math.sin(t * 2 + i) * 0.2, 0], knees: Math.max(0, -Math.sin(t * 7 + i)) * 0.4 });
     } else {
       hpose(s, { t, eye: 1.15, open: 0.2, smile: -0.6, brow: -0.9, look: [0, 0.3], arms: [[[-0.3, 0, 0.15], -0.8], [[-1.1, 0, -0.2], -0.9]], head: [-0.25 + Math.sin(t * 20 + i) * 0.02, 0, 0], body: [0.05, 0, Math.sin(t * 23 + i) * 0.02] });
     }
@@ -712,10 +737,8 @@ function shot7(t) {
   const pick = (t - s.start - 1.3) / 0.32;
   const n = clamp(Math.floor(pick) + 1, 0, 5);
   const bend = t > s.start + 1.0 ? 0.5 + 0.1 * Math.sin(t * 20) : sm(P(t, s.start + 0.5, s.start + 1.0)) * 0.5;
-  davi.body.position.y = -bend * 0.25;
-  hpose(davi, { t, smile: 0.5, brow: 0.3, look: [0, -0.4], head: [0.4, 0, 0], body: [bend, 0, 0],
+  hpose(davi, { t, smile: 0.5, brow: 0.3, look: [0, -0.4], head: [0.4, 0, 0], body: [bend, 0, 0], bodyY: -bend * 0.25,
     arms: [[[-0.6 - 0.4 * Math.abs(Math.sin(t * 9)), 0, 0.2], -0.4], [[-1.0, 0, -0.3], -1.2]], legs: [-bend * 0.8, -bend * 0.8] });
-  davi.body.rotation.x = bend;
   updateSling('hang', t);
   stones.forEach((st, i) => {
     st.visible = true;
@@ -732,11 +755,11 @@ function shot7(t) {
 function shot8(t) {
   lights('day'); sunAt(V(0, 0, 0));
   const s = S.d8;
-  goliasPose(t, { open: 0.9, smile: 1, brow: -0.2, lid: 0.55, head: [-0.35 + Math.sin(t * 14) * 0.08, 0, Math.sin(t * 7) * 0.05], body: [Math.sin(t * 14) * 0.03, 0, 0], arms: [[[-0.6, 0, 0.3], -1.6], [[-0.8, 0, -0.6], -1.6]] });
+  goliasPose(t, { open: 0.75 + 0.25 * Math.abs(Math.sin(t * 14)), smile: 1, brow: -0.2, lid: 0.55, bodyY: Math.abs(Math.sin(t * 14)) * 0.035, head: [-0.35 + Math.sin(t * 14) * 0.08, 0, Math.sin(t * 7) * 0.05], body: [-0.12 + Math.sin(t * 14) * 0.04, 0, Math.sin(t * 7) * 0.03], arms: [[[-0.6, 0, 0.3], -1.6], [[-0.8, 0, -0.6], -1.6]] });
   davi.root.visible = true;
   const w = P(t, s.start - 0.2, s.end + 0.3);
   davi.root.position.set(lerp(-7, -4.5, w), 0, 0.4); davi.root.rotation.y = Math.PI / 2;
-  hpose(davi, { t, smile: 0, brow: 0.6, legs: walkLegs(t), arms: walkArms(t) });
+  hpose(davi, { t, smile: 0, brow: 0.6, legs: walkLegs(t), arms: walkArms(t), body: [0.06, Math.sin(t * 7) * 0.08, Math.sin(t * 7) * 0.035], head: [0, -Math.sin(t * 7) * 0.06, 0] });
   davi.root.position.y = Math.abs(Math.sin(t * 7)) * 0.04;
   updateSling('hang', t);
   // por cima do ombro do gigante
@@ -750,7 +773,7 @@ function shot9(t) {
   goliasPose(t, { open: 0.3, smile: 0.4 });
   davi.root.visible = true;
   davi.root.position.set(lerp(-4.5, -3.6, P(t, s.start - 0.3, S.d10.start)), 0, 0.4); davi.root.rotation.y = Math.PI / 2;
-  hpose(davi, { t, smile: -0.1, brow: 0.85, legs: walkLegs(t, 5, 0.35), arms: walkArms(t, 5, 0.3), head: [-0.08, 0, 0] });
+  hpose(davi, { t, smile: -0.1, brow: 0.85, legs: walkLegs(t, 5, 0.35), arms: walkArms(t, 5, 0.3), head: [-0.08, -Math.sin(t * 5) * 0.05, 0], body: [0.08, Math.sin(t * 5) * 0.07, Math.sin(t * 5) * 0.03], bodyY: Math.abs(Math.sin(t * 5)) * 0.03 });
   updateSling('hang', t);
   const hp = headPos(davi);
   const k = sm(P(t, s.start - 0.3, S.d10.start));
@@ -769,9 +792,21 @@ function shot10(t) {
   const up = sm(P(t, tSpin - 0.3, tSpin));
   const speed = 6 + 14 * P(t, tSpin, tRel);
   const ang = (t - tSpin) * speed;
-  hpose(davi, { t, brow: 0.9, smile: -0.1, open: spinning ? 0.3 : 0, head: [-0.1, 0, 0],
-    arms: after ? [[[-1.7, 0, 0.1], -0.05], [[0.3, 0, -0.4], -0.3]] : [[[lerp(-0.5, -2.9, up), 0, lerp(0.3, 0.2, up)], lerp(-1.0, -0.3, up)], [[-0.7, 0, -0.3], -1.1]],
-    legs: [0.3, -0.25] });
+  const load = t >= tLoad && t < tSpin - 0.3;
+  const crouch = sm(P(t, tSpin - 0.7, tSpin - 0.15));
+  const fk = eo(P(t, tRel, tRel + 0.35));
+  if (after) {
+    hpose(davi, { t, brow: 0.9, smile: -0.1, open: 0.45 * (1 - fk * 0.5), idle: 0.3, head: [lerp(-0.1, 0.1, fk), lerp(0, -0.2, fk), 0],
+      body: [lerp(-0.08, 0.3, fk), lerp(0.15, -0.35, fk), 0], knees: lerp(0.45, 0.15, fk),
+      arms: [[[lerp(-2.9, -0.8, fk), 0, lerp(0.2, -0.55, fk)], -0.05], [[lerp(-0.7, 0.4, fk), 0, -0.5], -0.4]],
+      legs: [lerp(0.2, 0.55, fk), lerp(-0.2, -0.45, fk)] });
+  } else {
+    hpose(davi, { t, brow: 0.9, smile: -0.1, open: spinning ? 0.3 : 0, idle: spinning ? 0.2 : 1,
+      head: [load ? 0.35 : -0.1, 0, 0], look: load ? [0, -0.4] : [0, 0],
+      body: [spinning ? -0.08 : crouch * 0.12, spinning ? Math.sin(ang) * 0.09 + 0.15 : 0, 0], knees: crouch * 0.45,
+      arms: load ? [[[-0.9, 0, -0.1], -1.3], [[-0.9, 0, 0.15], -1.4]] : [[[lerp(-0.5, -2.9, up), 0, lerp(0.3, 0.2, up)], lerp(-1.0, -0.3, up)], [[-0.7, 0, -0.3], -1.1]],
+      legs: [0.3 * crouch, -0.25 * crouch] });
+  }
   updateSling(spinning ? 'spin' : after ? 'hang' : 'hang', t, { angle: ang, stone: t >= tLoad && !after });
   const hp = headPos(davi);
   if (after) {
@@ -794,11 +829,24 @@ function shot11(t) {
   lights('glory'); sunAt(GOL, V(-6, 10, 8));
   const s = S.d11, hit = s.start + 0.35, fallEnd = s.end - 0.1;
   const fallK = P(t, hit + 0.5, fallEnd);
-  const ang = Math.pow(fallK, 2.2) * (Math.PI / 2 - 0.12);
+  const full = Math.PI / 2 - 0.12;
+  let ang = Math.pow(fallK, 2.2) * full;
+  if (t > hit && t < hit + 0.5) ang = Math.sin((t - hit) * 14) * 0.05 * (1 - (t - hit) / 0.5);   // cambaleia
+  if (t > fallEnd) ang = full - 0.09 * Math.exp(-(t - fallEnd) * 5) * Math.abs(Math.sin((t - fallEnd) * 13));  // quica no chão
   goliasPivot.rotation.z = -ang;
+  // lança escapa da mão e cai separada
+  const drop = P(t, hit + 0.3, hit + 1.1);
+  golias.spear.visible = t < hit + 0.3;
+  looseSpear.visible = t >= hit + 0.3;
+  if (looseSpear.visible) {
+    const dk = drop * drop;
+    looseSpear.position.set(GOL.x - 1.2 + dk * 2.6, lerp(2.2, 0.12, dk) + (drop >= 1 ? Math.abs(Math.sin((t - hit - 1.1) * 12)) * 0.12 * Math.exp(-(t - hit - 1.1) * 5) : 0), 1.3);
+    looseSpear.rotation.set(0, 0, lerp(-0.15, -1.52, dk));
+  }
   const dazed = t > hit;
   goliasPose(t, { eye: dazed ? 1.2 : 1, lid: dazed ? 0.3 : null, open: dazed ? 0.6 : 0.2, smile: dazed ? -0.3 : 0.3, brow: dazed ? -0.6 : 0.6, look: dazed ? [Math.sin(t * 20) * 0.3, 0.2] : [0, 0],
-    arms: dazed ? [[[-0.9 - fallK, 0, 0.8], -0.3], [[-0.9 - fallK, 0, -0.8], -0.3]] : null, head: [-0.2 * fallK, 0, 0] });
+    arms: dazed ? [[[-1.2 - fallK + Math.sin(t * 11) * 0.5 * (1 - fallK * 0.5), 0, 0.9], -0.3 - Math.abs(Math.sin(t * 9)) * 0.4], [[-1.2 - fallK - Math.sin(t * 11) * 0.5 * (1 - fallK * 0.5), 0, -0.9], -0.3]] : null,
+    head: [-0.2 * fallK, 0, dazed ? Math.sin(t * 9) * 0.15 * (1 - fallK) : 0], body: [dazed ? -0.12 * sm(P(t, hit + 0.1, hit + 0.5)) : 0, 0, 0], idle: dazed ? 0 : 1 });
   if (t < hit) {
     flyStone.visible = true;
     const to = headPos(golias).add(V(-0.55, 0.32, 0)), from = to.clone().add(V(-2.5, -0.8, 0));
@@ -806,18 +854,18 @@ function shot11(t) {
     flyStone.position.copy(from.lerp(to, fly));
   }
   star.visible = t > hit && t < hit + 0.45;
-  if (star.visible) { const sc = 0.3 + 0.7 * P(t, hit, hit + 0.15); star.scale.set(sc, sc, sc); star.position.copy(headPos(golias).add(V(-0.6, 0.35, 0))); star.material.rotation = t * 3; }
+  if (star.visible) { const sc = 0.25 + 0.45 * P(t, hit, hit + 0.15); star.scale.set(sc, sc, sc); star.position.copy(headPos(golias).add(V(-0.6, 0.35, 0))); star.material.rotation = t * 3; }
   updateDust(hit + 0.5 + (fallEnd - hit - 0.5) * 0.92, t, V(GOL.x + 3.5, 0, 0), 5);
   davi.root.visible = true; davi.root.position.set(-3.4, 0, 0.4); davi.root.rotation.y = Math.PI / 2;
   hpose(davi, { t, brow: 0.6, smile: 0, eye: 1.1, arms: [[[-1.7, 0, 0.1], -0.05], [[0.3, 0, -0.4], -0.3]], legs: [0.3, -0.25] });
   updateSling('hang', t);
   const impact = fallEnd;
   const shake = pulse(t, hit, 0.3) * 0.05 + pulse(t, impact - 0.05, 0.6) * 0.18;
-  if (t < hit + 0.6) {
+  if (t < hit + 0.3) {
     const hp = headPos(golias);
     cam(V(hp.x - 2.2, hp.y - 0.3, hp.z + 1.6), V(hp.x - 0.3, hp.y + 0.1, hp.z), 40, shake, t);
   } else {
-    const k = sm(P(t, hit + 0.6, s.end + 0.5));
+    const k = sm(P(t, hit + 0.3, s.end + 0.5));
     cam(V(lerp(-6.5, -7.5, k), lerp(2.6, 3.2, k), lerp(7.5, 9.5, k)), V(lerp(1.5, 2.5, k), lerp(2.6, 0.8, k), 0), 46, shake, t);
   }
   flashAt(t, [hit], 0.18, 0.9);
@@ -827,6 +875,7 @@ function shot12(t) {
   lights('glory'); const p = V(-3.4, 0, 0.4); sunAt(p, V(-6, 10, 8));
   const s = S.d12;
   goliasPivot.rotation.z = -(Math.PI / 2 - 0.12);
+  golias.spear.visible = false; looseSpear.visible = true; looseSpear.position.set(GOL.x + 1.4, 0.12, 1.3); looseSpear.rotation.set(0, 0, -1.52);
   goliasPose(t, { lid: 1, open: 0.3, arms: [[[-1.9, 0, 0.8], -0.3], [[-1.9, 0, -0.8], -0.3]] });
   updateDust(S.d11.end - 0.1, t, V(GOL.x + 3.5, 0, 0), 5);
   davi.root.visible = true; davi.root.position.copy(p); davi.root.rotation.y = 0.9;
@@ -862,7 +911,7 @@ function shot14(t) {
   const s = S.d14;
   davi.root.visible = true; davi.acc.staff.visible = true;
   davi.root.position.copy(PAST); davi.root.rotation.y = 0;
-  hpose(davi, { t, smile: 1, talk: 0, brow: -0.2, eye: 1.05, arms: [[[-2.7 + Math.sin(t * 8) * 0.25, 0, 0.5], -0.4], [[-0.3, 0, -0.15], -1.0]] });
+  hpose(davi, { t, smile: 1, talk: 0, brow: -0.2, eye: 1.05, arms: [[[-2.7, 0, 0.5 + Math.sin(t * 8) * 0.35], -0.4 - Math.sin(t * 8) * 0.2], [[-0.3, 0, -0.15], -1.0]], head: [0.05, 0, Math.sin(t * 2.2) * 0.12], body: [0, 0, Math.sin(t * 8) * 0.03], bodyY: Math.abs(Math.sin(t * 4)) * 0.02 });
   sheep.forEach((sh, i) => {
     sh.visible = true; const a = i * 1.05 + 0.4;
     sh.position.set(PAST.x + Math.cos(a) * (1.5 + (i % 2) * 0.8), 0, PAST.z + Math.sin(a) * 1.2 - 0.6);
@@ -895,6 +944,7 @@ function renderAt(t) {
   else if (t < b('d13')) shot12(t);
   else if (t < b('d14')) shot13(t);
   else shot14(t);
+  sheepLife(t);
   if (world.visible) updateBirds(true, t, camera.position.clone().setY(0));
   if (t >= b('d4') && t < b('d5') || t >= b('d13')) updateButterflies(true, t, PAST);
   if (t >= b('d13')) { sunDisc.visible = true; sunDisc.position.set(PAST.x - 30, 6, PAST.z - 55); }
