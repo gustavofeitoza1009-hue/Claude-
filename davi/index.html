@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Davi e Golias</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  #stage { position: relative; width: 720px; height: 1280px; overflow: hidden; font-family: 'Inter', 'DejaVu Sans', sans-serif; }
+  canvas#c { position: absolute; inset: 0; width: 720px; height: 1280px; }
+  .ov { position: absolute; pointer-events: none; }
+  #vig { inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 58%, rgba(20,10,0,.38) 100%); }
+  #bars { inset: 0; opacity: 0; }
+  #bars:before, #bars:after { content: ''; position: absolute; left: 0; right: 0; height: 56px; background: #000; }
+  #bars:before { top: 0; } #bars:after { bottom: 0; }
+  #flash { inset: 0; background: #fff8e6; opacity: 0; }
+  #tint { inset: 0; opacity: 0; }
+  #title { left: 40px; right: 40px; top: 140px; text-align: center; color: #fff4dc; opacity: 0;
+           font-family: 'DejaVu Serif', serif; font-weight: 700; font-size: 44px; line-height: 1.12; letter-spacing: 1px;
+           text-shadow: 0 3px 14px rgba(0,0,0,.6), 0 0 2px rgba(0,0,0,.8); }
+  #title small { display: block; font-family: 'Inter', sans-serif; font-size: 18px; letter-spacing: 6px; color: #ffd27a; margin-bottom: 12px; font-weight: 700; }
+  #caption { left: 44px; right: 44px; bottom: 118px; text-align: center; font-weight: 800; font-size: 33px; line-height: 1.22; color: #fff;
+             -webkit-text-stroke: 2px rgba(0,0,0,.85); paint-order: stroke fill; text-shadow: 0 3px 10px rgba(0,0,0,.5); }
+  #caption span { display: inline-block; }
+  #caption span.on { color: #ffd27a; }
+  #stones { left: 0; right: 0; top: 150px; margin: 0 auto; width: max-content; display: flex; gap: 12px; padding: 10px 16px; border-radius: 30px; background: rgba(30, 20, 10, .45); opacity: 0; }
+  #stones i { width: 26px; height: 22px; border-radius: 50% 45% 50% 40%; background: rgba(255,255,255,.25); display: block; }
+  #stones i.on { background: linear-gradient(160deg, #d9dde0, #8e959b); box-shadow: 0 2px 4px rgba(0,0,0,.4); }
+  #cta { left: 50px; right: 50px; top: 150px; text-align: center; opacity: 0; background: rgba(255, 248, 230, .93); color: #3a2414; border-radius: 22px; padding: 18px 20px; box-shadow: 0 10px 26px rgba(0,0,0,.25); }
+  #cta b { display: block; font-size: 28px; font-weight: 900; }
+  #cta span { display: block; margin-top: 6px; font-size: 20px; font-weight: 700; color: #a0522d; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="c" width="720" height="1280"></canvas>
+  <div class="ov" id="tint"></div>
+  <div class="ov" id="vig"></div>
+  <div class="ov" id="bars"></div>
+  <div class="ov" id="title"><small>DAVI &amp; GOLIAS</small>O menino que derrotou um gigante</div>
+  <div class="ov" id="stones"><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="ov" id="cta"><b>Você já conhecia essa história?</b><span>Comente SIM ou NÃO</span></div>
+  <div class="ov" id="caption"></div>
+  <div class="ov" id="flash"></div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>
