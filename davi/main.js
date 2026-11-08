@@ -235,6 +235,49 @@ function hpose(c, o = {}) {
     a.el.rotation.set((r && r[1] != null ? r[1] : -0.15) - Math.sin(t * 1.9 + sd + i) * 0.04 * ib, 0, 0);
   }
   for (let i = 0; i < 2; i++) c.legs[i].rotation.set((legs ? legs[i] : 0) - knees * 0.35, 0, (i ? -1 : 1) * weight * 0.025);
+  resolveArms(c);
+}
+// ---- impede que mãos/braços atravessem o próprio corpo ----
+const _w = new THREE.Vector3(), _p = new THREE.Vector3(), _m = new THREE.Vector3();
+function penetration(c, a) {
+  const robe = !!(c.o && c.o.robe), bot = robe ? 0.0 : 0.69, top = 1.47, rb = robe ? 0.4 : 0.33;
+  const sx = c.torsoX || 1, sz = c.torsoZ || 1, hr = 0.26 * (c.headR || 1);
+  let worst = 0;
+  const test = (obj, rad, off) => {
+    obj.getWorldPosition(_w); if (off) _w.add(off);
+    _p.copy(_w); c.body.worldToLocal(_p);
+    if (_p.y > bot - 0.06 && _p.y < top + 0.08) {
+      const k = clamp((_p.y - bot) / (top - bot)), r = lerp(rb, 0.23, k) + (_p.y > top - 0.12 ? 0.04 : 0);
+      worst = Math.max(worst, r + rad - Math.sqrt((_p.x / sx) ** 2 + (_p.z / sz) ** 2));
+    }
+    worst = Math.max(worst, hr + rad - Math.sqrt(_p.x ** 2 + (_p.y - 1.76) ** 2 + _p.z ** 2));
+  };
+  test(a.hand, 0.075);
+  test(a.el, 0.06);
+  // meio do antebraço
+  a.el.getWorldPosition(_m); a.hand.getWorldPosition(_w); _m.lerp(_w, 0.5);
+  _p.copy(_m); c.body.worldToLocal(_p);
+  if (_p.y > bot - 0.06 && _p.y < top + 0.08) {
+    const k = clamp((_p.y - bot) / (top - bot)), r = lerp(rb, 0.23, k);
+    worst = Math.max(worst, r + 0.06 - Math.sqrt((_p.x / sx) ** 2 + (_p.z / sz) ** 2));
+  }
+  return worst;
+}
+function resolveArms(c) {
+  if (c === golias) goliasPivot.updateMatrixWorld(true);
+  c.root.updateMatrixWorld(true);
+  for (const a of c.arms) {
+    let pen = penetration(c, a);
+    for (let it = 0; it < 24 && pen > 0.004; it++) {
+      // tenta abrir o braço para o lado ou levá-lo para frente; fica com o que resolve melhor
+      const z0 = a.sh.rotation.z, x0 = a.sh.rotation.x;
+      a.sh.rotation.z = z0 + a.s * 0.07; a.sh.updateMatrixWorld(true); const pz = penetration(c, a);
+      a.sh.rotation.z = z0; a.sh.rotation.x = x0 - 0.07; a.sh.updateMatrixWorld(true); const px = penetration(c, a);
+      if (pz <= px) { a.sh.rotation.x = x0; a.sh.rotation.z = z0 + a.s * 0.07; pen = pz; }
+      else pen = px;
+      a.sh.updateMatrixWorld(true);
+    }
+  }
 }
 const walkLegs = (t, sp = 7, a = 0.45) => [Math.sin(t * sp) * a, -Math.sin(t * sp) * a];
 const walkArms = (t, sp = 7, a = 0.4) => [[[-Math.sin(t * sp) * a, 0, 0.1], -0.3], [[Math.sin(t * sp) * a, 0, -0.1], -0.3]];
@@ -255,7 +298,7 @@ const davi = makeHuman({ skin: 0xe8b08a, tunic: 0xeedfba, belt: 0xc0392b, hair: 
 const golias = makeHuman({ skin: 0xc48a62, tunicMat: armorM, belt: 0x5a3a1a, helmet: true, crest: 0xb3262e, beard: 0x24170f, browCol: 0x24170f, bracers: true, greaves: true, armorPads: true, iris: 0x2a1a0c });
 golias.torso.scale.set(1.3, 1, 1.2); golias.torsoX = 1.3; golias.torsoZ = 1.2;
 for (const a of golias.arms) a.sh.scale.setScalar(1.25);
-golias.head.scale.setScalar(0.92);
+golias.head.scale.setScalar(0.92); golias.headR = 0.92;
 const saul = makeHuman({ skin: 0xd9a07a, tunic: 0x6c3fa6, robe: true, belt: 0xf2c14e, crown: true, beard: 0x9a9a9a, browCol: 0x7a7a7a });
 const soldiers = [];
 for (let i = 0; i < 7; i++) {
@@ -955,6 +998,41 @@ function renderAt(t) {
   updateCaption(t);
   renderer.render(scene, camera);
 }
+// ---------- colisão braço x corpo ----------
+function armHits(c) {
+  c.root.updateMatrixWorld(true); goliasPivot.updateMatrixWorld(true);
+  const out = [];
+  const robe = !!c.o.robe, bot = robe ? 0.0 : 0.69, top = 1.47, rb = robe ? 0.4 : 0.33;
+  const sx = c.torsoX || 1, sz = c.torsoZ || 1;
+  c.arms.forEach((a, i) => {
+    const pts = [[a.hand, 0.065, 'mão'], [a.el, 0.055, 'cotovelo']];
+    const mid = new THREE.Object3D(); // meio do antebraço
+    for (const [obj, rad, nm] of pts) {
+      const w = obj.getWorldPosition(V(0, 0, 0));
+      const p = c.body.worldToLocal(w.clone());
+      // tronco (cone elíptico)
+      if (p.y > bot - 0.05 && p.y < top + 0.05 && nm === 'mão') {
+        const k = clamp((p.y - bot) / (top - bot));
+        const r = lerp(rb, 0.23, k);
+        const d = Math.sqrt((p.x / sx) ** 2 + (p.z / sz) ** 2) - r - rad;
+        if (d < -0.01) out.push({ arm: i, part: nm + '/tronco', depth: +(-d).toFixed(3) });
+      }
+      // cabeça
+      const hc = V(0, 1.76, 0.0);
+      const dh = p.distanceTo(hc) - 0.26 * (c === golias ? 0.92 : 1) - rad;
+      if (dh < -0.01) out.push({ arm: i, part: nm + '/cabeça', depth: +(-dh).toFixed(3) });
+    }
+  });
+  return out;
+}
+window.collisions = t => {
+  renderAt(t);
+  const names = new Map([[davi, 'Davi'], [golias, 'Golias'], [saul, 'Saul']]);
+  soldiers.forEach((s, i) => names.set(s, 'soldado' + i)); philistines.forEach((s, i) => names.set(s, 'filisteu' + i));
+  const res = [];
+  for (const h of humans) if (h.root.visible) for (const x of armHits(h)) res.push({ who: names.get(h), ...x });
+  return res;
+};
 window.renderAt = renderAt;
 window.DURATION = DUR;
 window.ready = true;
