@@ -322,7 +322,7 @@ function updateSling(mode, t, o = {}) {
 const stoneM = M(0x9aa0a6, 0.6);
 const stones = []; for (let i = 0; i < 5; i++) { const s = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 1), stoneM); s.scale.setScalar(0.06); s.castShadow = true; scene.add(s); stones.push(s); }
 const flyStone = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 1), stoneM); flyStone.scale.setScalar(0.07); scene.add(flyStone);
-const trail = []; for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(SPH, new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: 0.5 - i * 0.07, depthWrite: false })); m.scale.setScalar(0.06 - i * 0.007); scene.add(m); trail.push(m); }
+const trail = []; for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(SPH, new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: 0.5 - i * 0.07, depthWrite: false })); m.scale.setScalar(0.1 - i * 0.012); scene.add(m); trail.push(m); }
 // ovelhas
 function makeSheep() {
   const g = new THREE.Group();
@@ -400,7 +400,7 @@ function olive(x, z, s = 1) {
   add(world, CYL, M(0x6b5240, 0.9), [x, 0.6 * s, z], [0.12 * s, 1.2 * s, 0.12 * s], [0, 0, 0.15]);
   for (let i = 0; i < 4; i++) add(world, SPH, M([0x7b9a58, 0x8aa765][i % 2], 0.9), [x + (i - 1.5) * 0.35 * s, 1.5 * s + (i % 2) * 0.2 * s, z + (i % 2 - 0.5) * 0.3], [0.55 * s, 0.38 * s, 0.5 * s]);
 }
-olive(-6, -6, 1.3); olive(7, -7, 1.4); olive(-10, 3, 1.1); olive(11, 2, 1.2); olive(-3, -12, 1.5); olive(4, 10, 1.2); olive(-30, 6, 1.5); olive(-38, 12, 1.3);
+olive(-6, -6, 1.3); olive(7, -7, 1.4); olive(-10, 3, 1.1); olive(11, 2, 1.2); olive(-3, -12, 1.5); olive(4, 10, 1.2); olive(-41, 1, 1.5); olive(-45, 15, 1.3);
 for (let i = 0; i < 26; i++) add(world, new THREE.DodecahedronGeometry(1, 0), M(0xb8aa92, 0.9), [(RND() - 0.5) * 50, 0.1, (RND() - 0.5) * 30], [0.2 + RND() * 0.4, 0.15 + RND() * 0.3, 0.2 + RND() * 0.4]);
 // montanhas ao longe e nuvens
 for (let i = 0; i < 9; i++) { const m = add(world, new THREE.ConeGeometry(14 + (i % 3) * 5, 12 + (i % 4) * 4, 7), M(0x9fb5c9, 1), [-70 + i * 18, 4, -60 - (i % 2) * 10]); m.castShadow = false; }
@@ -426,6 +426,63 @@ const tentIn = new THREE.Group(); tentIn.position.set(0, 0, 80); scene.add(tentI
   // tochas
   for (const s of [-1, 1]) { add(tentIn, CYL, M(0x5a3a1a, 0.8), [s * 2.4, 0.9, -3.4], [0.05, 1.8, 0.05]); add(tentIn, SPH, M(0xffb347, 0.3, 0, { emissive: 0xff8c1a, emissiveIntensity: 2 }), [s * 2.4, 1.9, -3.4], [0.12, 0.18, 0.12]); }
 }
+
+// ---------- detalhes de ambiente ----------
+const birds = [];
+for (let i = 0; i < 6; i++) {
+  const b = new THREE.Group();
+  const wm = M(0x2b2b33, 0.8);
+  const w1 = add(b, BOX, wm, [0.18, 0, 0], [0.36, 0.02, 0.1]), w2 = add(b, BOX, wm, [-0.18, 0, 0], [0.36, 0.02, 0.1]);
+  add(b, SPH, wm, [0, 0, 0], [0.06, 0.05, 0.14]);
+  b.userData = { w1, w2 }; scene.add(b); birds.push(b);
+}
+function updateBirds(on, t, center = V(0, 0, 0)) {
+  birds.forEach((b, i) => {
+    b.visible = on; if (!on) return;
+    const x = ((t * (2.2 + i * 0.25) + i * 9) % 60) - 30;
+    b.position.set(center.x + x, center.y + 9 + (i % 3) * 1.2 + Math.sin(t * 1.5 + i) * 0.4, center.z - 10 - (i % 2) * 4);
+    b.rotation.y = Math.PI / 2;
+    const f = Math.sin(t * 9 + i) * 0.6;
+    b.userData.w1.rotation.z = f; b.userData.w2.rotation.z = -f;
+    b.userData.w1.position.y = b.userData.w2.position.y = f * 0.08;
+  });
+}
+const flies2 = [];
+const bfCols = [0xffd166, 0xff8fb1, 0x9ad0ff, 0xffffff];
+for (let i = 0; i < 5; i++) {
+  const b = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color: bfCols[i % 4], side: THREE.DoubleSide, roughness: 0.6 });
+  const w1 = new THREE.Mesh(new THREE.CircleGeometry(0.07, 12), m), w2 = w1.clone();
+  w1.position.x = 0.06; w2.position.x = -0.06; b.add(w1, w2); b.userData = { w1, w2 };
+  scene.add(b); flies2.push(b);
+}
+function updateButterflies(on, t, c) {
+  flies2.forEach((b, i) => {
+    b.visible = on; if (!on) return;
+    const a = t * (0.6 + i * 0.1) + i * 1.3;
+    b.position.set(c.x + Math.cos(a) * (1.8 + i * 0.3), 0.6 + 0.4 * Math.sin(t * 2 + i) + (i % 2) * 0.4, c.z + Math.sin(a) * 1.4 - 0.4);
+    b.rotation.y = -a;
+    const f = Math.sin(t * 22 + i) * 1.1;
+    b.userData.w1.rotation.y = f; b.userData.w2.rotation.y = -f;
+  });
+}
+{   // capim
+  const N = 900, grass = new THREE.InstancedMesh(new THREE.ConeGeometry(0.05, 0.28, 4), M(0x7ea84e, 0.9), N);
+  const r = rng(31), d = new THREE.Object3D(), col = new THREE.Color();
+  for (let i = 0; i < N; i++) {
+    const inPasture = i < 300;
+    const x = inPasture ? -34 + (r() - 0.5) * 16 : (r() - 0.5) * 40, z = inPasture ? 8 + (r() - 0.5) * 12 : (r() - 0.5) * 22;
+    const skip = !inPasture && (Math.abs(z) < 2.7 || (z > 4.3 && z < 6.1));
+    d.position.set(x, skip ? -5 : 0.12, z); d.rotation.set((r() - 0.5) * 0.4, r() * 3, (r() - 0.5) * 0.4); d.scale.setScalar(0.7 + r() * 0.8);
+    d.updateMatrix(); grass.setMatrixAt(i, d.matrix);
+    grass.setColorAt(i, col.setHSL(0.23 + r() * 0.05, 0.45, 0.38 + r() * 0.12));
+  }
+  grass.receiveShadow = true; world.add(grass);
+}
+const sunDisc = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: textTex((g, W, H) => { const gr = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W / 2); gr.addColorStop(0, 'rgba(255,240,200,1)'); gr.addColorStop(0.35, 'rgba(255,190,110,1)'); gr.addColorStop(0.5, 'rgba(255,150,80,.5)'); gr.addColorStop(1, 'rgba(255,140,80,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }, 256, 256),
+  transparent: true, depthWrite: false, fog: false }));
+sunDisc.scale.set(16, 16, 1); scene.add(sunDisc);
 
 // =========================================================
 //   OVERLAYS
@@ -511,7 +568,9 @@ function hideAll() {
   star.visible = false; updateDust(null); updateSparks(false); updateSling(null); rayM.opacity = 0;
   davi.acc.armor.visible = false; davi.acc.helm.visible = false; davi.acc.staff.visible = false; davi.acc.bag.visible = true;
   canvas.style.filter = '';
+  updateBirds(false); updateButterflies(false); sunDisc.visible = false;
 }
+function spearsUp(list) { for (const s of list) { const a = s.arms[0]; s.spear.rotation.set(-(a.sh.rotation.x + a.el.rotation.x), 0, -a.sh.rotation.z); } }
 function soldierLine(t, mood, o = {}) {
   soldiers.forEach((s, i) => {
     s.root.visible = true;
@@ -526,6 +585,7 @@ function soldierLine(t, mood, o = {}) {
       hpose(s, { t, eye: 1.15, open: 0.2, smile: -0.6, brow: -0.9, look: [0, 0.3], arms: [[[-0.3, 0, 0.15], -0.8], [[-1.1, 0, -0.2], -0.9]], head: [-0.25 + Math.sin(t * 20 + i) * 0.02, 0, 0], body: [0.05, 0, Math.sin(t * 23 + i) * 0.02] });
     }
   });
+  spearsUp(soldiers);
 }
 function philistineLine(t) {
   philistines.forEach((p, i) => {
@@ -535,15 +595,19 @@ function philistineLine(t) {
 }
 function goliasPose(t, o = {}) {
   golias.root.visible = true;
-  hpose(golias, { t, brow: 0.9, smile: -0.2, eye: 1, arms: [[[-0.5, 0, 0.25], -1.1], [[-0.4, 0, -0.25], -1.0]], ...o });
-  golias.spear.rotation.set(0.5, 0, 0);
+  hpose(golias, { t, brow: 0.9, smile: -0.2, eye: 1, arms: [[[-0.5, 0, 0.25], -1.1], [[0.05, 0, -0.35], -0.3]], ...o });
+  const a0 = golias.arms[0];
+  golias.spear.rotation.set(-(a0.sh.rotation.x + a0.el.rotation.x) + 0.15, 0, -a0.sh.rotation.z);
 }
 
 // 1) abertura: gigante visto de baixo
 function shot1(t) {
   lights('drama'); sunAt(GOL, V(-6, 6, 8));
   const k = sm(P(t, 0, S.d2.start));
-  goliasPose(t, { open: 0.15, head: [0.15, 0.2, 0], look: [0.2, 0.25] });
+  const walk = P(t, 0, 1.6);
+  goliasPivot.position.set(lerp(4.4, 2.6, eo(walk)), 0, 0);
+  goliasPose(t, { open: 0.15, head: [0.15, 0.2, 0], look: [0.2, 0.25], legs: walk < 1 ? walkLegs(t, 4, 0.35) : null });
+  updateDust(0.15, t, V(goliasPivot.position.x - 0.5, 0, 0), 2);
   soldiers.slice(0, 3).forEach((s, i) => {
     s.root.visible = true; s.root.position.set(-1.2 + i * 0.9, 0, 3.2 + (i % 2) * 0.4); s.root.rotation.y = Math.PI * 0.85;
     hpose(s, { t, eye: 1.2, open: 0.3, smile: -0.7, brow: -1, look: [0, 0.4], head: [-0.45, 0, 0], arms: [[[-0.3, 0, 0.15], -0.8], [[-1.1, 0, -0.2], -0.9]], body: [0, 0, Math.sin(t * 25 + i) * 0.02] });
@@ -564,19 +628,19 @@ function shot2(t) {
 // 3) Golias desafia / soldiers com medo
 function shot3(t) {
   const f = segFrac(t, 'd3');
-  if (f < 0.5) {
+  if (f < 0.62) {
     lights('drama'); sunAt(GOL, V(-6, 8, 8));
-    goliasPose(t, { talk: 1, brow: 1, smile: -0.4, head: [-0.1, 0, Math.sin(t * 3) * 0.06], arms: [[[-2.3 + Math.sin(t * 3) * 0.15, 0, 0.2], -0.5], [[-0.5, 0, -0.3], -1.0]] });
+    goliasPose(t, { talk: 1, brow: 1, smile: -0.4, head: [-0.1, 0, Math.sin(t * 3) * 0.06], arms: [[[-2.3 + Math.sin(t * 3) * 0.15, 0, 0.2], -0.5], [[0.05, 0, -0.4], -0.3]] });
     const hp = headPos(golias);
     const k = sm(P(t, S.d3.start - 0.3, S.d3.start + 2));
     cam(V(hp.x - 6.8 + k * 0.8, hp.y - lerp(2.6, 1.8, k), hp.z + 2.4), V(hp.x, hp.y - 1.0, hp.z), 40, 0.012, t);
   } else {
     lights('drama'); sunAt(V(-7.5, 0, 0), V(6, 8, 8));
-    soldierLine(t, 'fear', { back: S.d3.start + (S.d3.end - S.d3.start) * 0.55 });
+    soldierLine(t, 'fear', { back: S.d3.start + (S.d3.end - S.d3.start) * 0.66 });
     goliasPose(t, { talk: 0.4 });
     cam(V(-4.0, 1.7, 3.6), V(-7.8, 1.4, -0.3), 42);
   }
-  flashAt(t, [S.d3.start + (S.d3.end - S.d3.start) * 0.5], 0.15, 0.5);
+  flashAt(t, [S.d3.start + (S.d3.end - S.d3.start) * 0.62], 0.15, 0.5);
 }
 // 4) Davi, o pastor
 const PAST = V(-34, 0, 8);
@@ -588,7 +652,7 @@ function shot4(t) {
   hpose(davi, { t, smile: f > 0.55 ? 0.3 : 0.7, brow: f > 0.55 ? 0.5 : 0, look: [f > 0.55 ? 0.4 : 0, 0], head: [0, f > 0.55 ? 0.5 : 0.1, 0], arms: [[[0.1, 0, 0.12], -0.3], [[-0.3, 0, -0.15], -1.0]] });
   sheep.forEach((s, i) => {
     s.visible = true; const a = i * 1.05 + 0.4;
-    s.position.set(PAST.x + Math.cos(a) * (1.4 + (i % 2) * 0.7), 0, PAST.z + Math.sin(a) * 1.1 + 0.4);
+    s.position.set(PAST.x + Math.cos(a) * (1.5 + (i % 2) * 0.7), 0, PAST.z - 1.0 - Math.abs(Math.sin(a)) * 0.9);
     s.rotation.y = a + Math.PI / 2 + Math.sin(t + i) * 0.2;
     s.userData.head.rotation.x = 0.3 + Math.sin(t * 2 + i) * 0.3;
   });
@@ -599,15 +663,16 @@ function shot4(t) {
 // 5) todos veem um gigante / Davi vê Deus com ele
 function shot5(t) {
   const f = segFrac(t, 'd5');
-  if (f < 0.42) {
+  if (f < 0.5) {
     lights('drama'); sunAt(V(-7.5, 0, 0), V(6, 8, 8));
     soldierLine(t);
     goliasPose(t, { talk: 0.3 });
-    cam(V(-5.2, 0.9, 2.2), V(-7.6, 1.9, -0.5), 40);
+    const k5 = sm(P(t, S.d5.start - 0.2, S.d5.start + 2.5));
+    cam(V(-3.2, lerp(1.4, 2.2, k5), lerp(5.2, 4.6, k5)), V(-7.4, 1.5, -0.2), 40);
   } else {
     lights('glory'); const p = V(-4.5, 0, 1.0); sunAt(p, V(-4, 12, 6));
     davi.root.visible = true; davi.root.position.copy(p); davi.root.rotation.y = 0.5;
-    const k = sm(P(t, S.d5.start + (S.d5.end - S.d5.start) * 0.42, S.d6.start));
+    const k = sm(P(t, S.d5.start + (S.d5.end - S.d5.start) * 0.5, S.d6.start));
     hpose(davi, { t, smile: 0.6, brow: -0.2, look: [0, 0.6], head: [-0.45, 0, 0], arms: [[[-0.4, 0, 0.5], -0.4], [[-0.4, 0, -0.5], -0.4]] });
     rays.position.set(p.x, 0, p.z); rayM.opacity = 0.06 * sm(P(t, S.d5.start + (S.d5.end - S.d5.start) * 0.45, S.d5.start + (S.d5.end - S.d5.start) * 0.7));
     rays.rotation.y = t * 0.2;
@@ -616,7 +681,7 @@ function shot5(t) {
     const hp = headPos(davi);
     cam(V(hp.x + 1.0, hp.y - lerp(0.9, 0.7, k), hp.z + lerp(3.4, 2.8, k)), V(hp.x, hp.y + 0.1, hp.z), 42);
   }
-  flashAt(t, [S.d5.start + (S.d5.end - S.d5.start) * 0.42], 0.25, 0.7);
+  flashAt(t, [S.d5.start + (S.d5.end - S.d5.start) * 0.5], 0.25, 0.7);
 }
 // 6) a armadura do rei
 function shot6(t) {
@@ -658,7 +723,7 @@ function shot7(t) {
     else st.position.set(p.x + 0.3 + i * 0.12, 0.05, p.z + 0.55 + (i % 2) * 0.1);
   });
   const k = sm(P(t, s.start - 0.3, S.d8.start));
-  cam(V(p.x + lerp(1.6, 1.1, k), lerp(1.6, 1.3, k), p.z + lerp(3.0, 2.4, k)), V(p.x + 0.2, 0.8, p.z), 40);
+  cam(V(p.x + lerp(1.9, 1.5, k), lerp(1.7, 1.5, k), p.z + lerp(3.8, 3.3, k)), V(p.x + 0.2, 0.9, p.z), 40);
   // contador de pedras
   show(el.stones, sm(P(t, s.start + 1.0, s.start + 1.3)) * (1 - sm(P(t, S.d8.start - 0.3, S.d8.start))));
   el.stones.querySelectorAll('i').forEach((d, i) => d.className = i < n ? 'on' : '');
@@ -676,7 +741,7 @@ function shot8(t) {
   updateSling('hang', t);
   // por cima do ombro do gigante
   const k = sm(P(t, s.start - 0.3, S.d9.start));
-  cam(V(lerp(4.6, 4.3, k), lerp(5.6, 5.3, k), lerp(-2.2, -1.8, k)), V(-3, 0.6, 0.6), 44);
+  cam(V(lerp(5.4, 5.0, k), lerp(6.8, 6.4, k), lerp(-3.0, -2.6, k)), V(-3.5, 0.6, 0.6), 44);
 }
 // 9) Davi não recua
 function shot9(t) {
@@ -716,11 +781,11 @@ function shot10(t) {
     const from = davi.arms[0].hand.getWorldPosition(V(0, 0, 0)), to = headPos(golias).add(V(-0.55, 0.32, 0));
     flyStone.position.copy(from.clone().lerp(to, fly)).add(V(0, Math.sin(fly * Math.PI) * 0.6, 0));
     flyStone.rotation.set(t * 20, t * 15, 0);
-    trail.forEach((m, i) => { m.visible = true; const f2 = Math.max(0, fly - (i + 1) * 0.02); m.position.copy(from.clone().lerp(to, f2)).add(V(0, Math.sin(f2 * Math.PI) * 0.6, 0)); });
-    cam(V(flyStone.position.x - 1.2, flyStone.position.y + 0.3, flyStone.position.z + 1.3), flyStone.position.clone().add(V(1, 0, -0.2)), 46);
+    trail.forEach((m, i) => { m.visible = true; const f2 = Math.max(0, fly - (i + 1) * 0.035); m.position.copy(from.clone().lerp(to, f2)).add(V(0, Math.sin(f2 * Math.PI) * 0.6, 0)); });
+    cam(V(-0.5, 2.8, 15), V(-0.5, 2.5, 0), 46);
   } else {
     const k = sm(P(t, s.start - 0.3, tRel));
-    cam(V(hp.x + lerp(0.8, 1.6, k), hp.y - lerp(0.6, 0.9, k), hp.z + lerp(2.6, 2.2, k)), V(hp.x - 0.1, hp.y + lerp(0.0, 0.3, k), hp.z), 42, spinning ? 0.006 * P(t, tSpin, tRel) : 0, t);
+    cam(V(hp.x + lerp(1.0, 1.9, k), hp.y - lerp(0.6, 0.9, k), hp.z + lerp(3.4, 3.0, k)), V(hp.x - 0.1, hp.y + lerp(-0.1, 0.25, k), hp.z), 44, spinning ? 0.006 * P(t, tSpin, tRel) : 0, t);
   }
   if (spinning) canvas.style.filter = `contrast(1.08) saturate(1.15)`;
 }
@@ -830,6 +895,9 @@ function renderAt(t) {
   else if (t < b('d13')) shot12(t);
   else if (t < b('d14')) shot13(t);
   else shot14(t);
+  if (world.visible) updateBirds(true, t, camera.position.clone().setY(0));
+  if (t >= b('d4') && t < b('d5') || t >= b('d13')) updateButterflies(true, t, PAST);
+  if (t >= b('d13')) { sunDisc.visible = true; sunDisc.position.set(PAST.x - 30, 6, PAST.z - 55); }
   flashAt(t, ['d2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'd12', 'd13'].map(id => b(id)), 0.14, 0.45);
   // faixas de cinema na parte dramática
   const drama = t < b('d4') || (t > b('d8') && t < b('d12'));

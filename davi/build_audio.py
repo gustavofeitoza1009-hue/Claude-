@@ -52,7 +52,11 @@ LEAD_IN = 1.2
 TAIL = 3.0
 
 VOZ = os.path.join(HERE, "vozes", "narracao.mp3")
-CHUNKS = []   # preenchido quando houver narração gravada: (id, ini, fim, pausa_extra)
+# trechos da narração gravada (ElevenLabs): (id, início, fim, pausa extra depois)
+CHUNKS = [("d1", 0.00, 5.37, 0), ("d2", 5.37, 7.86, 0), ("d3", 7.86, 14.61, 0), ("d4", 14.61, 20.34, 0),
+          ("d5", 20.34, 26.57, 0), ("d6", 26.57, 31.88, 0), ("d7", 31.88, 35.72, 0.2), ("d8", 35.72, 39.47, 0),
+          ("d9", 39.47, 41.33, 0), ("d10", 41.33, 46.37, 0.6), ("d11", 46.37, 50.23, 0.5), ("d12", 50.23, 56.53, 0),
+          ("d13", 56.53, 64.62, 0), ("d14", 64.62, 99.0, 0)]
 
 
 def music(total, seg):
