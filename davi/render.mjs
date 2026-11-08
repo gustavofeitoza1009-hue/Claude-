@@ -45,7 +45,7 @@ if (arg('--preview')) {
     fs.writeFileSync(path.join(dir, `t${t.toFixed(2)}.jpg`), await frame(t));
   }
 } else {
-  const total = Math.ceil(DUR * FPS);
+  const total = arg('--until') ? Math.ceil(parseFloat(arg('--until')) * FPS - 1e-6) : Math.ceil(DUR * FPS);
   const [pi, pn] = (arg('--part') || '0/1').split('/').map(Number);
   const a = Math.floor(total * pi / pn), b = Math.floor(total * (pi + 1) / pn);
   const out = path.join(ROOT, 'build', `part${pi}.mp4`);

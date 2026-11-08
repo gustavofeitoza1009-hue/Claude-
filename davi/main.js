@@ -556,7 +556,37 @@ const capData = TL.segments.map((s, i) => {
   return { ...s, words, times, until: next ? next.start - 0.05 : DUR };
 });
 let lastCap = '';
+const KEYWORDS = new Set(['golias', 'gigante', 'israel', 'davi', 'deus', 'impossível', 'invencível', 'armadura', 'funda', 'cinco', 'pedras', 'pedra',
+  'rir', 'recuou', 'lançou', 'testa', 'caiu', 'derrotado', 'pastor', 'guerreiro', 'medo', 'coragem', 'exército', 'força']);
+const norm = w => w.toLowerCase().replace(/[^a-zà-ú]/g, '');
+function updateCaptionFx(t) {
+  const seg = capData.find(s => t >= s.start - 0.08 && t < s.until);
+  if (!seg) { el.cap.innerHTML = ''; lastCap = ''; return; }
+  const f = (t - seg.start) / (seg.end - seg.start);
+  let idx = -1; seg.times.forEach((st, i) => { if (f >= st) idx = i; });
+  if (f > 1) idx = seg.words.length;
+  const key = 'fx' + seg.id + idx;
+  if (key !== lastCap) {
+    lastCap = key;
+    el.cap.innerHTML = seg.words.map((w, i) => {
+      const k = KEYWORDS.has(norm(w)) ? ' key' : '';
+      return `<span class="${i === idx ? 'on' : i < idx ? 'past' : 'fut'}${k}">${w}</span>`;
+    }).join(' ');
+  }
+  // entrada da frase (sobe e aparece) e "pop" na palavra falada
+  const ein = eo(P(t, seg.start - 0.08, seg.start + 0.18));
+  el.cap.style.opacity = ein; el.cap.style.transform = `translateY(${(1 - ein) * 18}px)`;
+  const on = el.cap.querySelector('span.on');
+  if (on && idx >= 0 && idx < seg.times.length) {
+    const ws = seg.start + seg.times[idx] * (seg.end - seg.start);
+    const p = P(t, ws, ws + 0.16);
+    const big = on.classList.contains('key') ? 0.1 : 0.05;
+    on.style.transform = `translateY(${-6 * Math.sin(p * Math.PI)}px) scale(${1 + big * Math.sin(Math.min(1, p) * Math.PI) + big * 0.4})`;
+  }
+}
 function updateCaption(t) {
+  if (EDIT.front) return updateCaptionFx(t);
+  el.cap.style.opacity = ''; el.cap.style.transform = '';
   const seg = capData.find(s => t >= s.start - 0.08 && t < s.until);
   if (!seg) { if (lastCap) { el.cap.innerHTML = ''; lastCap = ''; } return; }
   const f = (t - seg.start) / (seg.end - seg.start);
@@ -603,7 +633,12 @@ function sunAt(target, off = V(-7, 12, 9)) {
   sun.target.position.copy(target); sun.position.copy(target).add(off);
   rim.target.position.copy(target); rim.position.copy(target).add(V(6, 5, -8));
 }
+const EDIT = { now: 0, ss: 0, se: 1, front: true, zoom: true };
 function cam(pos, look, fov = 40, shake = 0, t = 0) {
+  if (EDIT.front && EDIT.zoom) {
+    const n = EDIT.now;
+    fov *= (1 - 0.075 * sm(P(n, EDIT.ss, EDIT.se))) * (1 + 0.06 * (1 - eo(P(n, EDIT.ss, EDIT.ss + 0.4))));
+  }
   camera.fov = fov; camera.updateProjectionMatrix();
   camera.position.copy(pos);
   if (shake) camera.position.add(V(Math.sin(t * 61) * shake, Math.sin(t * 47 + 1) * shake, Math.sin(t * 53) * shake * 0.5));
@@ -622,7 +657,7 @@ function hideAll() {
   for (const h of humans) { h.root.visible = false; h.root.position.set(0, 0, 0); h.root.rotation.set(0, 0, 0); }
   golias.root.scale.setScalar(2.6); goliasPivot.position.copy(GOL); goliasPivot.rotation.set(0, 0, 0);
   golias.root.rotation.y = -Math.PI / 2; golias.root.visible = false;
-  sheep.forEach(s => s.visible = false); stones.forEach(s => s.visible = false); flyStone.visible = false; trail.forEach(m => m.visible = false);
+  sheep.forEach(s => s.visible = false); stones.forEach(s => s.visible = false); flyStone.visible = false; flyStone.scale.setScalar(0.07); trail.forEach(m => m.visible = false);
   star.visible = false; updateDust(null); updateSparks(false); updateSling(null); rayM.opacity = 0;
   looseSpear.visible = false; golias.spear.visible = true;
   davi.acc.armor.visible = false; davi.acc.helm.visible = false; davi.acc.staff.visible = false; davi.acc.bag.visible = true;
@@ -673,17 +708,34 @@ function shot1(t) {
   lights('drama'); sunAt(GOL, V(-6, 6, 8));
   const k = sm(P(t, 0, S.d2.start));
   const walk = P(t, 0, 1.6);
+  EDIT.zoom = t >= 1.15;
   goliasPivot.position.set(lerp(4.4, 2.6, eo(walk)), 0, 0);
   goliasPose(t, { open: 0.15, head: [0.15, 0.2, 0], look: [0.2, 0.25], legs: walk < 1 ? walkLegs(t, 4, 0.35) : null });
   updateDust(0.15, t, V(goliasPivot.position.x - 0.5, 0, 0), 2);
   soldiers.slice(0, 3).forEach((s, i) => {
-    s.root.visible = true; s.root.position.set(-1.2 + i * 0.9, 0, 3.2 + (i % 2) * 0.4); s.root.rotation.y = Math.PI * 0.85;
+    s.root.visible = t >= 1.15; s.root.position.set(-1.2 + i * 0.9, 0, 3.2 + (i % 2) * 0.4); s.root.rotation.y = Math.PI * 0.85;
     hpose(s, { t, eye: 1.2, open: 0.3, smile: -0.7, brow: -1, look: [0, 0.4], head: [-0.45, 0, 0], arms: [[[-0.3, 0, 0.15], -0.8], [[-1.1, 0, -0.2], -0.9]], body: [0, 0, Math.sin(t * 25 + i) * 0.02] });
   });
-  const shake = (pulse(t, 0.1, 0.4) + pulse(t, 0.9, 0.4)) * 0.05;
-  cam(V(lerp(-1.6, -0.6, k), lerp(0.6, 1.0, k), lerp(7.5, 6.2, k)), V(2.4, lerp(4.6, 4.2, k), 0), 42, shake, t);
-  const tk = sm(P(t, 0.3, 1.0)) * (1 - sm(P(t, 3.6, 4.4)));
-  show(el.title, tk, `translateY(${(1 - tk) * 20}px)`);
+  const step = Math.PI / 4;      // pisadas: mesmo ritmo do som
+  const shake = (pulse(t, 0.05, 0.35) + pulse(t, 0.05 + step, 0.35) + pulse(t, 0.05 + 2 * step, 0.35)) * 0.07;
+  const HOOK = 1.15;
+  if (t < 0.5) {
+    // close no pé do gigante batendo no chão
+    const px = goliasPivot.position.x;
+    cam(V(px - 2.3, 0.32, 1.9), V(px - 0.4, 0.45 + t * 0.4, 0.2), 34, shake, t);
+  } else if (t < HOOK) {
+    // sobe rápido do pé até o rosto
+    const u = eo(P(t, 0.5, HOOK));
+    const hp = headPos(golias);
+    cam(V(lerp(goliasPivot.position.x - 2.3, -0.9, u), lerp(0.32, 1.0, u), lerp(1.9, 6.4, u)), V(lerp(goliasPivot.position.x - 0.4, 2.4, u), lerp(0.7, hp.y - 0.2, u), lerp(0.2, 0, u)), lerp(34, 40, u), shake, t);
+  } else {
+    cam(V(lerp(-1.6, -0.6, k), lerp(0.6, 1.0, k), lerp(7.5, 6.2, k)), V(2.4, lerp(4.6, 4.2, k), 0), 42, shake, t);
+  }
+  // título entra com impacto
+  const tin = P(t, 0.55, 0.85), tk = clamp(tin * 3) * (1 - sm(P(t, 3.4, 4.0)));
+  show(el.title, tk, `scale(${lerp(1.6, 1, back(tin))})`);
+  el.title.style.textShadow = `0 3px 14px rgba(0,0,0,.6), 0 0 ${lerp(30, 6, clamp(tin))}px rgba(255,190,90,${lerp(0.9, 0.35, clamp(tin))})`;
+  if (t < 0.12) el.flash.style.opacity = 0;
 }
 // 2) vale visto de cima
 function shot2(t) {
@@ -854,13 +906,26 @@ function shot10(t) {
   const hp = headPos(davi);
   if (after) {
     // pedra voando (câmera lenta)
-    const fly = P(t, tRel, S.d11.start + 0.35);
+    // câmera lenta no começo do voo, depois a pedra acelera até a testa
+    const hitT = S.d11.start + 0.35;
+    const x = P(t, tRel, hitT);
+    const ramp = v => v < 0.65 ? 0.38 * (v / 0.65) : 0.38 + 0.62 * Math.pow((v - 0.65) / 0.35, 1.6);
+    const fly = ramp(x);
     flyStone.visible = true;
-    const from = davi.arms[0].hand.getWorldPosition(V(0, 0, 0)), to = headPos(golias).add(V(-0.55, 0.32, 0));
-    flyStone.position.copy(from.clone().lerp(to, fly)).add(V(0, Math.sin(fly * Math.PI) * 0.6, 0));
+    const from = V(-3.15, 2.55, 0.45), to = headPos(golias).add(V(-0.55, 0.32, 0));
+    const at = f => from.clone().lerp(to, f).add(V(0, Math.sin(f * Math.PI) * 0.5, 0));
+    flyStone.position.copy(at(fly));
     flyStone.rotation.set(t * 20, t * 15, 0);
-    trail.forEach((m, i) => { m.visible = true; const f2 = Math.max(0, fly - (i + 1) * 0.035); m.position.copy(from.clone().lerp(to, f2)).add(V(0, Math.sin(f2 * Math.PI) * 0.6, 0)); });
-    cam(V(-0.5, 2.8, 15), V(-0.5, 2.5, 0), 46);
+    trail.forEach((m, i) => { m.visible = true; m.position.copy(at(Math.max(0, fly - (i + 1) * 0.03))); });
+    // câmera acompanha a pedra e para perto do gigante; a pedra "entra" no rosto dele
+    // por trás do Davi, a câmera avança junto com a pedra mantendo o gigante no quadro
+    const cs = sm(x);
+    const cp = V(-4.9, 2.1, 2.0).lerp(to.clone().add(V(-2.6, -0.5, 1.6)), cs * 0.85);
+    const lk = to.clone().lerp(at(fly), 0.45).add(V(0, lerp(-1.0, -0.3, cs), 0));
+    flyStone.scale.setScalar(0.11);
+    EDIT.zoom = false;
+    cam(cp, lk, lerp(40, 34, sm(x)));
+    canvas.style.filter = 'contrast(1.08) saturate(1.15)';
   } else {
     const k = sm(P(t, s.start - 0.3, tRel));
     cam(V(hp.x + lerp(1.0, 1.9, k), hp.y - lerp(0.6, 0.9, k), hp.z + lerp(3.4, 3.0, k)), V(hp.x - 0.1, hp.y + lerp(-0.1, 0.25, k), hp.z), 44, spinning ? 0.006 * P(t, tSpin, tRel) : 0, t);
@@ -912,6 +977,8 @@ function shot11(t) {
     cam(V(lerp(-6.5, -7.5, k), lerp(2.6, 3.2, k), lerp(7.5, 9.5, k)), V(lerp(1.5, 2.5, k), lerp(2.6, 0.8, k), 0), 46, shake, t);
   }
   flashAt(t, [hit], 0.18, 0.9);
+  if (t >= hit && t < hit + 0.1) canvas.style.filter = 'contrast(1.7) saturate(0.2) brightness(1.25)';
+  EDIT.punch = Math.max(EDIT.punch, 0.13 * (1 - eo(P(t, hit, hit + 0.45))) * (t >= hit ? 1 : 0));
 }
 // 12) vitória!
 function shot12(t) {
@@ -973,6 +1040,11 @@ function renderAt(t) {
   el.flash.style.opacity = 0;
   for (const k of ['title', 'stones', 'cta']) show(el[k], 0);
   const g = S, b = id => g[id].start - 0.12;
+  // limites dos planos (para zoom suave e "punch" no corte)
+  const cuts = [0, b('d2'), b('d3'), b('d4'), b('d5'), b('d6'), b('d7'), b('d8'), b('d9'), b('d10'), g.d11.start + 0.35, b('d12'), b('d13')];
+  let ci = 0; while (ci < cuts.length - 1 && t >= cuts[ci + 1]) ci++;
+  EDIT.now = t; EDIT.ss = cuts[ci]; EDIT.se = cuts[ci + 1] ?? DUR; EDIT.front = t < b('d13'); EDIT.zoom = true; EDIT.punch = 0;
+  canvas.style.transform = '';
   if (t < b('d2')) shot1(t);
   else if (t < b('d3')) shot2(t);
   else if (t < b('d4')) shot3(t);
@@ -982,7 +1054,7 @@ function renderAt(t) {
   else if (t < b('d8')) shot7(t);
   else if (t < b('d9')) shot8(t);
   else if (t < b('d10')) shot9(t);
-  else if (t < g.d10.end - 0.15 + 0.5) shot10(t);
+  else if (t < g.d11.start + 0.35) shot10(t);
   else if (t < b('d12')) shot11(t);
   else if (t < b('d13')) shot12(t);
   else if (t < b('d14')) shot13(t);
@@ -995,6 +1067,11 @@ function renderAt(t) {
   // faixas de cinema na parte dramática
   const drama = t < b('d4') || (t > b('d8') && t < b('d12'));
   el.bars.style.opacity = drama ? 1 : 0;
+  if (EDIT.front) {
+    if (!canvas.style.filter) canvas.style.filter = 'contrast(1.06) saturate(1.1)';
+    const punch = Math.max(EDIT.punch, ci > 0 ? 0.045 * (1 - eo(P(t, EDIT.ss, EDIT.ss + 0.3))) : 0);
+    canvas.style.transform = punch > 0.001 ? `scale(${1 + punch})` : '';
+  }
   updateCaption(t);
   renderer.render(scene, camera);
 }

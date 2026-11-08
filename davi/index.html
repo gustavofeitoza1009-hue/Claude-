@@ -20,8 +20,12 @@
   #title small { display: block; font-family: 'Inter', sans-serif; font-size: 18px; letter-spacing: 6px; color: #ffd27a; margin-bottom: 12px; font-weight: 700; }
   #caption { left: 44px; right: 44px; bottom: 118px; text-align: center; font-weight: 800; font-size: 33px; line-height: 1.22; color: #fff;
              -webkit-text-stroke: 2px rgba(0,0,0,.85); paint-order: stroke fill; text-shadow: 0 3px 10px rgba(0,0,0,.5); }
-  #caption span { display: inline-block; }
+  #caption span { display: inline-block; margin: 0 3px; }
   #caption span.on { color: #ffd27a; }
+  #caption span.fut { opacity: .55; }
+  #caption span.key { color: #ffb347; }
+  #caption span.key.on { color: #ffe08a; text-shadow: 0 0 14px rgba(255,190,80,.85), 0 3px 10px rgba(0,0,0,.5); }
+  #caption span.on { display: inline-block; transform-origin: 50% 80%; }
   #stones { left: 0; right: 0; top: 150px; margin: 0 auto; width: max-content; display: flex; gap: 12px; padding: 10px 16px; border-radius: 30px; background: rgba(30, 20, 10, .45); opacity: 0; }
   #stones i { width: 26px; height: 22px; border-radius: 50% 45% 50% 40%; background: rgba(255,255,255,.25); display: block; }
   #stones i.on { background: linear-gradient(160deg, #d9dde0, #8e959b); box-shadow: 0 2px 4px rgba(0,0,0,.4); }
